@@ -41,7 +41,7 @@ tc-iot-at-sdk-stm32-freertos-based-example 面向使用支持腾讯AT指令的�
 | 3   | AUTH_MODE_KEY                | 认证方式，证书认证还是秘钥认证                       					  |
 | 4   | DEBUG_DEV_INFO_USED          | 默认使能该宏，设备信息使用调试信息，正式量产关闭该宏，并实现设备信息存取接口     |
 
-#####2.2  **hal_os.c:**该源文件主要实现打印、延时、时间戳、锁、线程创建、设备信息存取等
+##### 2.2  **hal_os.c:**该源文件主要实现打印、延时、时间戳、锁、线程创建、设备信息存取等
 
 | 序号  | HAL_API                            | 说明                                 |
 | ---- | -----------------------------------| ----------------------------------  |
@@ -73,22 +73,22 @@ tc-iot-at-sdk-stm32-freertos-based-example 面向使用支持腾讯AT指令的�
 | 26   | HAL_SetDevPrivateKeyName           | 设置设备证书私钥文件名，必须存放在非易失性存储介质，证书认证方式为必选实现   |
 
 
-#####2.3  **hal_at.c:**该源文件主要实现AT串口初始化、串口收发、模组开关机
+##### 2.3  **hal_at.c:**该源文件主要实现AT串口初始化、串口收发、模组开关机
 
-| 序号  | 方法名                         | 说明                                 		|
+| 序号  | HAL_API                        | 说明                                 		|
 | ---- | -------------------------------| ----------------------------------		|
 | 1    | module_power_on                | 模组开机，AT串口初始化，必选实现              |
 | 1    | module_power_off               | 模组关机，低功耗需要，可选实现                |
 | 2    | AT_UART_IRQHandler             | AT串口中断ISR，将收取到的数据放入ringbuff中，AT解析线程会实时解析数据，必选实现|
 | 3    | at_send_data                   | AT串口发送接口                             |
 
-#####2.4  **module_api_inf.c:**：配网/注网 API业务适配
+##### 2.4  **module_api_inf.c:**：配网/注网 API业务适配
 该源文件基于腾讯定义的AT指令实现了MQTT的交互，但有一个关于联网/注网的API(module_register_network)需要根据模组适配。
 示例基于[ESP8266腾讯定制AT固件](http://git.code.oa.com/iotcloud_teamIII/qcloud-iot-at-esp8266-wifi.git)示例了WIFI直连的方式连接网络，但更常用的场景是根据特定事件（譬如按键）触发配网（softAP/一键配网），这块的逻辑各具体业务逻辑自行实现。ESP8266有封装配网指令和示例APP。对于蜂窝模组，则是使用特定的网络注册指令。开发者参照module_handshake应用AT-SDK的AT框架添加和模组的AT指令交互。 
 
 <img src="https://main.qcloudimg.com/raw/3d8e6135365099c15ab67bbe816b7a01.jpg"/>
 
-#####2.5 设备信息修改
+##### 2.5 设备信息修改
 调试时，在hal_export.h将设备信息调试宏定义打开。量产时需要关闭该宏定义，实现hal-os中序列17-26的设备信息存取API
 ```
 #define 	DEBUG_DEV_INFO_USED
@@ -109,7 +109,7 @@ char sg_device_secret[MAX_SIZE_OF_DEVICE_SERC + 1] = "ttOARy0PjYgzd9OSs4Z3RA==";
 
 #endif
 ```
-#####2.6 示例说明
+##### 2.6 示例说明
 Smaple目录一共有四个示例，分别是mqtt_sample.c、shadow_sample.c、data_template_sample.c、light_data_template_sample.c。
 通过main.c中宏定义 *RUN_SAMPLE_TYPE* 控制具体运行哪个个示例。
 
