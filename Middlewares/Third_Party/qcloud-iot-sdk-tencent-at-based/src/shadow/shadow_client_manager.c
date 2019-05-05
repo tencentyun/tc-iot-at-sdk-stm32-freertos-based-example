@@ -22,6 +22,7 @@ extern "C" {
 #include <stdbool.h>
 #include <stdint.h>
 #include "utils_timer.h"
+#include "at_utils.h"
 #include "shadow_client.h"
 #include "shadow_client_json.h"
 #include "qcloud_iot_api_export.h"
@@ -132,6 +133,9 @@ int do_shadow_request(Qcloud_IoT_Shadow *pShadow, RequestParams *pParams, char *
     }
 
     if (rc == AT_ERR_SUCCESS) {
+#ifdef TRANSFER_LABEL_NEED			
+		at_strip(client_token, '\\');
+#endif
         rc = _add_request_to_list(pShadow, client_token, pParams);
     }
 
@@ -249,6 +253,8 @@ static void _on_operation_result_handler(char *msg, void *context)
 	 Log_e("Fail to parse type!");
 	 goto End;
 	}
+
+
 	//非delta消息的push，一定由设备端触发，找到设备段对应的client_token
 	if (strcmp(type_str, OPERATION_DELTA) && !parse_client_token(cloud_rcv_buf, &client_token)) {
 		 Log_e("Fail to parse client token! Json=%s", cloud_rcv_buf);
@@ -378,8 +384,11 @@ static int _set_shadow_json_type(char *pJsonDoc, size_t sizeOfBuffer, Method met
     size_t remain_size = sizeOfBuffer - json_len;
 
     char json_node_str[64] = {0};
+#ifdef TRANSFER_LABEL_NEED
+	HAL_Snprintf(json_node_str, 64, "\\\"type\\\":\\\"%s\\\"\\, ", type_str);
+#else
     HAL_Snprintf(json_node_str, 64, "\"type\":\"%s\", ", type_str);
-
+#endif
     size_t json_node_len = strlen(json_node_str);
     if (json_node_len >= remain_size - 1) {
         rc = AT_ERR_INVAL;
@@ -503,12 +512,13 @@ static void _traverse_list(Qcloud_IoT_Shadow *pShadow, List *list, const char *p
  */
 static void _handle_request_callback(Qcloud_IoT_Shadow *pShadow, ListNode **node, List *list, const char *pClientToken, const char *pType)
 {
+	
     IOT_FUNC_ENTRY;
 
     Request *request = (Request *)(*node)->val;
     if (NULL == request)
         IOT_FUNC_EXIT;
-
+	
     if (strcmp(request->client_token, pClientToken) == 0)
     {
         RequestAck status = ACK_NONE;

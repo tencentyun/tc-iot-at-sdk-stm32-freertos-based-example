@@ -24,12 +24,7 @@ extern "C" {
 #define AT_CMD_NAME_LEN                16
 #define AT_END_MARK_LEN                4
 
-#ifndef AT_CMD_MAX_LEN
-#define AT_CMD_MAX_LEN                 512
-#endif
 
-
-#define RING_BUFF_LEN         		   512			//uart ring buffer len
 //#define CLINET_BUFF_LEN				   (4*RING_BUFF_LEN)MAX_TOPIC_PAYLOAD_LEN
 #define CLINET_BUFF_LEN				   (MAX_TOPIC_PAYLOAD_LEN)
 #define GET_CHAR_TIMEOUT_MS			   (5000)
@@ -127,6 +122,8 @@ void at_set_end_sign(char ch);
 void at_set_urc_table(at_client_t client, const at_urc_t table, uint32_t size);
 
 /* AT client send commands to AT server and waiter response */
+int at_client_send(at_client_t client, char *buf, int size);
+
 eAtResault at_obj_exec_cmd(at_response_t resp, const char *cmd_expr, ...);
 #define at_exec_cmd(resp, ...)                   at_obj_exec_cmd(resp, __VA_ARGS__)
 

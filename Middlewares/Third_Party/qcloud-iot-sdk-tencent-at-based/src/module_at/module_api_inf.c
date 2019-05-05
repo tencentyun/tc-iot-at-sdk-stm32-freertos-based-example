@@ -252,7 +252,7 @@ eAtResault module_info_set(DeviceInfo *pInfo, eTlsMode eMode)
 	
 	/* Set dev info */
 	if(AT_ERR_SUCCESS !=  at_exec_cmd(resp, "AT+TCDEVINFOSET=%d,\"%s\",\"%s\",\"%s\"",\
-									eMode,pInfo->product_id, pInfo->device_name, pInfo->devSerc))
+									eMode,pInfo->product_id, pInfo->device_name, pInfo->devSerc))								
     {
     	Log_e("cmd AT+TCDEVINFOSET exec err");
 		result = AT_ERR_FAILURE;
@@ -322,29 +322,62 @@ eAtResault module_mqtt_discon(void)
 }
 
 /* mqtt pub msg */
-eAtResault module_mqtt_pub(const char *topic, QoS eQos, const char *payload)
+eAtResault module_mqtt_pub(const char *topic, QoS eQos, char *payload)
 {
 	eAtResault result = AT_ERR_SUCCESS;
 	at_response_t resp = NULL;
 
-	resp = at_create_resp(64, 0, CMD_TIMEOUT_MS);	
-	if(AT_ERR_SUCCESS !=  at_exec_cmd(resp, "AT+TCMQTTPUB=\"%s\",%d,\"%s\"",topic,eQos,payload))				
-	{
-		Log_e("cmd AT+TCMQTTPUB exec err");
-		result = AT_ERR_FAILURE;
-	}
+	if(strlen(payload) > MAX_PAYLOAD_LEN_PUB){
+		Log_d("PUBL cmd used");
+		result = module_mqtt_publ(topic, eQos, payload);
+	}else{
+		resp = at_create_resp(64, 0, CMD_TIMEOUT_MS);		
+		if(AT_ERR_SUCCESS !=  at_exec_cmd(resp, "AT+TCMQTTPUB=\"%s\",%d,\"%s\"",topic,eQos,payload))	
+		{
+			Log_e("cmd AT+TCMQTTPUB exec err");
+			result = AT_ERR_FAILURE;
+		}
 
-	if(resp)
-	{
-		at_delete_resp(resp);
+		if(resp)
+		{
+			at_delete_resp(resp);
+		}
 	}
 	
 	return result;
 }
 
-eAtResault module_mqtt_publ(const char *topic, QoS eQos, const char *payload)
+eAtResault module_mqtt_publ(const char *topic, QoS eQos, char *payload)
 {
-	//To DO
+	eAtResault result = AT_ERR_SUCCESS;
+	at_response_t resp = NULL;
+	int len;
+	
+	resp = at_create_resp(64, 0, CMD_TIMEOUT_MS);
+	at_set_end_sign('>');
+
+	result = at_exec_cmd(resp, "AT+TCMQTTPUBL=\"%s\",%d,%d",topic, eQos, strlen(payload));
+	if(AT_ERR_SUCCESS !=  result)	
+	{
+		Log_e("cmd AT+TCMQTTPUBL exec err");
+		goto exit;
+	}
+	
+	len = at_client_send(at_client_get(), payload, strlen(payload));
+	if(strlen(payload) !=  len)	
+	{
+		result = AT_ERR_SEND_DATA;
+		Log_e("send data err");
+	}
+
+exit:
+
+	if(resp)
+	{
+		at_delete_resp(resp);
+	}
+
+	at_set_end_sign(0);
     return AT_ERR_SUCCESS;
 }
 
@@ -372,7 +405,8 @@ eAtResault module_mqtt_sub(char *topic, QoS eQos, OnMessageHandler cb, void *con
    clearFlag(MQTT_SUB_FLAG);
 
 	resp = at_create_resp(64, 0, CMD_TIMEOUT_MS);	
-	if(AT_ERR_SUCCESS !=  at_exec_cmd(resp, "AT+TCMQTTSUB=\"%s\",%d",topic,eQos))				
+
+	if(AT_ERR_SUCCESS !=  at_exec_cmd(resp, "AT+TCMQTTSUB=\"%s\",%d",topic,eQos))	
 	{
 		Log_e("cmd AT+TCMQTTSUB exec err");
 		result = AT_ERR_FAILURE;
@@ -404,8 +438,8 @@ eAtResault module_mqtt_unsub(const char *topic)
 	eAtResault result = AT_ERR_SUCCESS;
 	at_response_t resp = NULL;
 
-	resp = at_create_resp(64, 0, CMD_TIMEOUT_MS);	
-	if(AT_ERR_SUCCESS !=  at_exec_cmd(resp, "AT+TCMQTTUNSUB=\"%s\"",topic))				
+	resp = at_create_resp(64, 0, CMD_TIMEOUT_MS);
+	if(AT_ERR_SUCCESS !=  at_exec_cmd(resp, "AT+TCMQTTUNSUB=\"%s\"",topic))		
 	{
 		Log_e("cmd AT+TCMQTTUNSUB exec err");
 		result = AT_ERR_FAILURE;
@@ -464,27 +498,6 @@ bool IOT_MQTT_IsConnected(void)
 }
 
 #if (MODULE_TYPE == eMODULE_ESP8266)
-
-eAtResault set_module_debug_level(int Log_level)
-{
-	eAtResault result = AT_ERR_SUCCESS;
-	at_response_t resp = NULL;
-
-	resp = at_create_resp(64, 0, CMD_TIMEOUT_MS);	
-	if(AT_ERR_SUCCESS !=  at_exec_cmd(resp, "AT+TCTEMLOG=%d",Log_level))				
-	{
-		Log_e("cmd AT+TCTEMLOG exec err");
-		result = AT_ERR_FAILURE;
-	}
-
-	if(resp)
-	{
-		at_delete_resp(resp);
-	}
-	
-	return result;
-}
-
 eAtResault wifi_connect(const char *ssid, const char *pw)
 {
 	eAtResault result = AT_ERR_SUCCESS;
@@ -492,11 +505,12 @@ eAtResault wifi_connect(const char *ssid, const char *pw)
 
 	/* clear sub flag*/
     clearFlag(WIFI_CON_FLAG);
-	resp = at_create_resp(64, 0, CMD_TIMEOUT_MS);	
-	if(AT_ERR_SUCCESS !=  at_exec_cmd(resp, "AT+CWJAP=\"%s\",\"%s\"",ssid, pw))				
+	resp = at_create_resp(128, 0, CMD_TIMEOUT_MS);
+
+	if(AT_ERR_SUCCESS !=  at_exec_cmd(resp, "AT+CWJAP=\"%s\",\"%s\"",ssid, pw))		
 	{
-		Log_e("cmd AT+TCTEMLOG exec err");
-		result = AT_ERR_FAILURE;
+		Log_e("cmd AT+CWJAP exec err");
+		//result = AT_ERR_FAILURE;
 	}
 
 	if(!waitFlag(WIFI_CON_FLAG, CMD_TIMEOUT_MS))
@@ -505,6 +519,28 @@ eAtResault wifi_connect(const char *ssid, const char *pw)
 		result = AT_ERR_FAILURE;
 	}
 
+	if(resp)
+	{
+		at_delete_resp(resp);
+	}
+	
+	return result;
+}
+
+eAtResault wifi_set_test_server_ip(const char *host)
+{
+	eAtResault result = AT_ERR_SUCCESS;
+	at_response_t resp = NULL;
+
+	/* clear sub flag*/
+    clearFlag(WIFI_CON_FLAG);
+	resp = at_create_resp(128, 0, CMD_TIMEOUT_MS);
+
+	if(AT_ERR_SUCCESS !=  at_exec_cmd(resp, "AT+TCMQTTSRV=\"%s\"",host))		
+	{
+		Log_e("cmd AT+TCMQTTSRV exec err");
+		result = AT_ERR_FAILURE;
+	}
 
 	if(resp)
 	{
@@ -513,6 +549,7 @@ eAtResault wifi_connect(const char *ssid, const char *pw)
 	
 	return result;
 }
+
 
 /*
 *模组联网（NB/2/3/4G注册网络）、wifi配网（一键配网/softAP）暂时很难统一,需要用户根据具体模组适配。
@@ -526,12 +563,14 @@ eAtResault module_register_network(eModuleType eType)
 	#define WIFI_SSID	"youga_wifi"
 	#define WIFI_PW		"Iot@2018"
 
+
 	/*此处示例传递热点名字直接联网，通常的做法是特定产品根据特定的事件（譬如按键）触发wifi配网（一键配网/softAP）*/
 	result = wifi_connect(WIFI_SSID, WIFI_PW);
 	if(AT_ERR_SUCCESS != result)
 	{
 		Log_e("wifi connect fail,ret:%d", result);	
 	}
+	
 #else
 	/*模组网络注册、或者wifi配网需要用户根据所选模组实现*/			
 #endif

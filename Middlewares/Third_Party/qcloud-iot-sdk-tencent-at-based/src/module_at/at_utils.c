@@ -14,6 +14,7 @@
 #include "at_utils.h"
 #include "hal_export.h"
 #include "at_client.h"
+#include "qcloud_iot_api_export.h"
 #include "at_sanity_check.h"
 
 

@@ -939,8 +939,8 @@
       <tvExp>0</tvExp>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>..\Middlewares\Third_Party\qcloud-iot-sdk-tencent-at-based\sample\data_template_sample.c</PathWithFileName>
-      <FilenameWithoutPath>data_template_sample.c</FilenameWithoutPath>
+      <PathWithFileName>..\Middlewares\Third_Party\qcloud-iot-sdk-tencent-at-based\usr_logic\data_template_usr_logic.c</PathWithFileName>
+      <FilenameWithoutPath>data_template_usr_logic.c</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
     </File>

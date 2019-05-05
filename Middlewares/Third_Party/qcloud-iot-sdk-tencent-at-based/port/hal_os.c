@@ -17,20 +17,20 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
-#include "stm32f1xx_hal.h"		//This file is based STM32 just now
+#include "stm32f1xx_hal.h"		
 #include "hal_export.h"
 #include "qcloud_iot_export_mqtt.h"
 
 #ifdef  DEBUG_DEV_INFO_USED
 
-static char sg_product_id[MAX_SIZE_OF_PRODUCT_ID + 1]	 = "03UKNYBUZG";
-static char sg_device_name[MAX_SIZE_OF_DEVICE_NAME + 1]  = "at_dev";
+static char sg_product_id[MAX_SIZE_OF_PRODUCT_ID + 1]	 = "PRODUCT_ID";
+static char sg_device_name[MAX_SIZE_OF_DEVICE_NAME + 1]  = "YOUR_DEVICE_NAME";
 
 #ifdef AUTH_MODE_CERT
 static char sg_device_cert_file_name[MAX_SIZE_OF_DEVICE_CERT_FILE_NAME + 1]      = "YOUR_DEVICE_NAME_cert.crt";
 static char sg_device_privatekey_file_name[MAX_SIZE_OF_DEVICE_KEY_FILE_NAME + 1] = "YOUR_DEVICE_NAME_private.key";
 #else
-char sg_device_secret[MAX_SIZE_OF_DEVICE_SERC + 1] = "ttOARy0PjYgzd9OSs4Z3RA==";
+char sg_device_secret[MAX_SIZE_OF_DEVICE_SERC + 1] = "YOUR_IOT_PSK";
 #endif
 
 #endif

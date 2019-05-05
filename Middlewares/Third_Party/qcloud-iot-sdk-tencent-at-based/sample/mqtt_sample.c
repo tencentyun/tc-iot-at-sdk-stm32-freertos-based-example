@@ -157,8 +157,11 @@ void mqtt_demo_task(void *arg)
 			HAL_SleepMs(1000);
 			memset(payload, 0, 256);
 			//*注意转义的处理，不同模组在json格式数据需要的转义处理有些差别*//
-			//HAL_Snprintf(payload, 256, "{\"action\": \"publish_test\"\, \"count\": \"%d\"}",count++);			
+#ifdef TRANSFER_LABEL_NEED								
 			HAL_Snprintf(payload, 256, "{\\\"action\\\": \\\"publish_test\\\"\\, \\\"count\\\": \\\"%d\\\"}",count++);
+#else
+			HAL_Snprintf(payload, 256, "{\"action\": \"publish_test\"\, \"count\": \"%d\"}",count++);	
+#endif
 			Log_d("pub_msg:%s", payload);
 			Ret = module_mqtt_pub(topic_name, QOS0, payload);
 			if(AT_ERR_SUCCESS != Ret)

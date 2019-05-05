@@ -691,9 +691,9 @@
           <GroupName>data_template_sample</GroupName>
           <Files>
             <File>
-              <FileName>data_template_sample.c</FileName>
+              <FileName>data_template_usr_logic.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Middlewares\Third_Party\qcloud-iot-sdk-tencent-at-based\sample\data_template_sample.c</FilePath>
+              <FilePath>..\Middlewares\Third_Party\qcloud-iot-sdk-tencent-at-based\usr_logic\data_template_usr_logic.c</FilePath>
             </File>
           </Files>
         </Group>

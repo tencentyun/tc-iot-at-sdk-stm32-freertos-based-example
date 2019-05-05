@@ -103,8 +103,11 @@ int put_json_node(char *jsonBuffer, size_t sizeOfBuffer, const char *pKey, void 
     if ((remain_size = sizeOfBuffer - strlen(jsonBuffer)) <= 1) {
         return AT_ERR_JSON_BUFFER_TOO_SMALL;
     }
-
+#ifdef TRANSFER_LABEL_NEED
+	rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\\\"%s\\\":", pKey);
+#else
     rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\"%s\":", pKey);
+#endif
     rc = _check_snprintf_return(rc_of_snprintf, remain_size);
     if (rc != AT_ERR_SUCCESS) {
         return rc;
@@ -149,7 +152,11 @@ int put_json_node(char *jsonBuffer, size_t sizeOfBuffer, const char *pKey, void 
             rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "%s,",
                                       *(bool *) (pData) ? "true" : "false");
         } else if (type == JSTRING) {
+#ifdef TRANSFER_LABEL_NEED
+			rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\\\"%s\\\"\\,", (char *) (pData));
+#else
             rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\"%s\",", (char *) (pData));
+#endif
         } else if (type == JOBJECT) {
             rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "%s,", (char *) (pData));
         }
@@ -169,8 +176,11 @@ int event_put_json_node(char *jsonBuffer, size_t sizeOfBuffer, const char *pKey,
     if ((remain_size = sizeOfBuffer - strlen(jsonBuffer)) <= 1) {
         return AT_ERR_JSON_BUFFER_TOO_SMALL;
     }
-
+#ifdef TRANSFER_LABEL_NEED
+	rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\\\"%s\\\":", pKey);
+#else
     rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\"%s\":", pKey);
+#endif
     rc = _check_snprintf_return(rc_of_snprintf, remain_size);
     if (rc != AT_ERR_SUCCESS) {
         return rc;
@@ -215,7 +225,11 @@ int event_put_json_node(char *jsonBuffer, size_t sizeOfBuffer, const char *pKey,
             rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "%u,",
                                       *(bool *) (pData) ? 1 : 0);		
         } else if (type == JSTRING) {
+#ifdef TRANSFER_LABEL_NEED
+			rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\\\"%s\\\",", (char *) (pData));
+#else
             rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\"%s\",", (char *) (pData));
+#endif
         } else if (type == JOBJECT) {
             rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "%s,", (char *) (pData));
         }
@@ -232,7 +246,11 @@ int generate_client_token(char *pStrBuffer, size_t sizeOfBuffer, uint32_t *token
 }
 
 void build_empty_json(uint32_t *tokenNumber, char *pJsonBuffer) {
+#ifdef TRANSFER_LABEL_NEED
+	HAL_Snprintf(pJsonBuffer, MAX_SIZE_OF_JSON_WITH_CLIENT_TOKEN, "{\\\"clientToken\\\":\\\"%s-%u\\\"}", iot_device_info_get()->product_id, (*tokenNumber)++);
+#else
 	HAL_Snprintf(pJsonBuffer, MAX_SIZE_OF_JSON_WITH_CLIENT_TOKEN, "{\"clientToken\":\"%s-%u\"}", iot_device_info_get()->product_id, (*tokenNumber)++);
+#endif
 }
 
 bool parse_client_token(char *pJsonDoc, char **pClientToken) {

@@ -22,7 +22,7 @@ extern "C" {
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "qcloud_iot_export_event.h"
+
 #include "qcloud_iot_api_export.h"
 #include "shadow_client_json.h"
 #include "shadow_client.h"
@@ -179,12 +179,23 @@ static inline int _check_snprintf_return(int32_t returnCode, size_t maxSizeOfWri
   
 	memset(pReply->client_token, 0, EVENT_TOKEN_MAX_LEN);	
 	HAL_Snprintf(pReply->client_token, MAX_SIZE_OF_JSON_WITH_CLIENT_TOKEN, "%s-%u", iot_device_info_get()->product_id, pshadow->inner_data.token_num++);
-	if(event_count > SIGLE_EVENT){	
+	if(event_count > SIGLE_EVENT){
+#ifdef TRANSFER_LABEL_NEED	
+		rc_of_snprintf = HAL_Snprintf(jsonBuffer, sizeOfBuffer, "{\\\"method\\\":\\\"%s\\\"\\, \\\"clientToken\\\":\\\"%s\\\"\\, \\\"version\\\":\\\"%s\\\"\\, ", \
+																		POST_EVENTS, pReply->client_token, EVENT_SDK_VERSION);
+#else
 		rc_of_snprintf = HAL_Snprintf(jsonBuffer, sizeOfBuffer, "{\"method\":\"%s\", \"clientToken\":\"%s\", \"version\":\"%s\", ", \
 																		POST_EVENTS, pReply->client_token, EVENT_SDK_VERSION);
+#endif
 	}else{	
-		rc_of_snprintf = HAL_Snprintf(jsonBuffer, sizeOfBuffer, "{\"method\":\"%s\", \"clientToken\":\"%s\", \"version\":\"%s\", ", \
-																		POST_EVENT, pReply->client_token, EVENT_SDK_VERSION);
+#ifdef TRANSFER_LABEL_NEED	
+				rc_of_snprintf = HAL_Snprintf(jsonBuffer, sizeOfBuffer, "{\\\"method\\\":\\\"%s\\\"\\, \\\"clientToken\\\":\\\"%s\\\"\\, \\\"version\\\":\\\"%s\\\"\\, ", \
+																				POST_EVENT, pReply->client_token, EVENT_SDK_VERSION);
+#else
+				rc_of_snprintf = HAL_Snprintf(jsonBuffer, sizeOfBuffer, "{\"method\":\"%s\", \"clientToken\":\"%s\", \"version\":\"%s\", ", \
+																				POST_EVENT, pReply->client_token, EVENT_SDK_VERSION);
+#endif
+
 	}
 		
     return _check_snprintf_return(rc_of_snprintf, sizeOfBuffer);
@@ -204,6 +215,7 @@ static int _IOT_Construct_Event_JSON(void *handle, char *jsonBuffer, size_t size
 	 POINTER_SANITY_CHECK(pshadow, AT_ERR_INVAL);
 	 POINTER_SANITY_CHECK(jsonBuffer, AT_ERR_INVAL);
 	 POINTER_SANITY_CHECK(pEventArry, AT_ERR_INVAL);
+	 Log_d("%d", sizeOfBuffer);
 
 	 int rc = _IOT_Event_JSON_Init(pshadow, jsonBuffer, sizeOfBuffer, event_count, replyCb, reply_timeout_ms);
  
@@ -218,7 +230,11 @@ static int _IOT_Construct_Event_JSON(void *handle, char *jsonBuffer, size_t size
 	 }
 
 	if(event_count > SIGLE_EVENT){//多个事件
+#ifdef TRANSFER_LABEL_NEED
+		rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\\\"events\\\":[");
+#else
 		rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\"events\":[");
+#endif
 		rc = _check_snprintf_return(rc_of_snprintf, remain_size);			
 		if (rc != AT_ERR_SUCCESS) {
 				return rc;
@@ -234,8 +250,13 @@ static int _IOT_Construct_Event_JSON(void *handle, char *jsonBuffer, size_t size
 				Log_e("%dth/%d null event", i, event_count);
 				return AT_ERR_NULL;
 			}
+#ifdef TRANSFER_LABEL_NEED
+			rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "{\\\"eventId\\\":\\\"%s\\\"\\, \\\"type\\\":\\\"%s\\\"\\, \\\"timestamp\\\":%d\\, \\\"params\\\":{",\
+											pEvent->event_name, pEvent->type, pEvent->timestamp);
+#else
 			rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "{\"eventId\":\"%s\", \"type\":\"%s\", \"timestamp\":%d, \"params\":{",\
 											pEvent->event_name, pEvent->type, pEvent->timestamp);
+#endif
 			rc = _check_snprintf_return(rc_of_snprintf, remain_size);			
 			if (rc != AT_ERR_SUCCESS) {
 					return rc;
@@ -263,7 +284,7 @@ static int _IOT_Construct_Event_JSON(void *handle, char *jsonBuffer, size_t size
 				return AT_ERR_JSON_BUFFER_TOO_SMALL;
 			}
 			
-			rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer)-1, remain_size, "}}," );
+			rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer)-1, remain_size, "}}\\," );
 
 			rc = _check_snprintf_return(rc_of_snprintf, remain_size);
 			if (rc != AT_ERR_SUCCESS) {
@@ -276,6 +297,11 @@ static int _IOT_Construct_Event_JSON(void *handle, char *jsonBuffer, size_t size
 		if ((remain_size = sizeOfBuffer - strlen(jsonBuffer)) <= 1) {
 			return AT_ERR_JSON_BUFFER_TOO_SMALL;
 		}
+		
+#ifdef TRANSFER_LABEL_NEED	
+		//转义符存在时为 \,
+		jsonBuffer[strlen(jsonBuffer)-1] = '\0';
+#endif		
 		rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer) - 1, remain_size, "]");
 		rc = _check_snprintf_return(rc_of_snprintf, remain_size);
 		if (rc != AT_ERR_SUCCESS) {
@@ -284,8 +310,13 @@ static int _IOT_Construct_Event_JSON(void *handle, char *jsonBuffer, size_t size
 
 	}else{ //单个事件		
 		sEvent *pEvent = pEventArry[0];
+#ifdef TRANSFER_LABEL_NEED
+		rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\\\"eventId\\\":\\\"%s\\\"\\, \\\"type\\\":\\\"%s\\\"\\, \\\"timestamp\\\":%d\\, \\\"params\\\":{",\
+										pEvent->event_name, pEvent->type, pEvent->timestamp);
+#else
 		rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\"eventId\":\"%s\", \"type\":\"%s\", \"timestamp\":%d, \"params\":{",\
 										pEvent->event_name, pEvent->type, pEvent->timestamp);
+#endif
 
 		rc = _check_snprintf_return(rc_of_snprintf, remain_size);
 		if (rc != AT_ERR_SUCCESS) {
@@ -336,9 +367,8 @@ static int _publish_event_to_cloud(void *c, char *pJsonDoc)
 	IOT_FUNC_ENTRY;
 	int rc = AT_ERR_SUCCESS;
 	char topic[MAX_SIZE_OF_CLOUD_TOPIC] = {0};
-
-
 	int size = HAL_Snprintf(topic, MAX_SIZE_OF_CLOUD_TOPIC, "$thing/up/event/%s/%s", iot_device_info_get()->product_id, iot_device_info_get()->device_name);
+
 	if (size < 0 || size > sizeof(topic) - 1)
 	{
 		Log_e("topic content length not enough! content size:%d  buf size:%d", size, (int)sizeof(topic));
@@ -426,14 +456,18 @@ int qcloud_iot_post_event_raw(void *pClient, char *pJsonDoc, size_t sizeOfBuffer
 	if ((remain_size = sizeOfBuffer - strlen(pJsonDoc)) <= 1) {
 		return AT_ERR_JSON_BUFFER_TOO_SMALL;
 	}
-
+	
+#ifdef TRANSFER_LABEL_NEED
+	rc_of_snprintf = HAL_Snprintf(pJsonDoc + strlen(pJsonDoc), remain_size, "\\\"events\\\":[%s]}", pEventMsg);
+#else
 	rc_of_snprintf = HAL_Snprintf(pJsonDoc + strlen(pJsonDoc), remain_size, "\"events\":[%s]}", pEventMsg);
+#endif
 	rc = _check_snprintf_return(rc_of_snprintf, remain_size);			
 	if (rc != AT_ERR_SUCCESS) {
 			return rc;
 	}
 
-	Log_d("JsonDoc:%s", pJsonDoc);
+	//Log_d("JsonDoc:%s", pJsonDoc);
 	
 	rc = _publish_event_to_cloud(pClient, pJsonDoc);	
 	if (rc != AT_ERR_SUCCESS) {

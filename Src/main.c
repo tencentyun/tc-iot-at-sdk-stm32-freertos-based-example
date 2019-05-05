@@ -58,7 +58,7 @@
 #define SHADOW_SAMPLE			2
 #define DATATEMPLATE_SAMPLE		3
 #define LIGHT_SCENARY_SAMPLE	4
-#define RUN_SAMPLE_TYPE			MQTT_SAMPLE
+#define RUN_SAMPLE_TYPE			LIGHT_SCENARY_SAMPLE
 
 //uint8_t g_PosRow = 0;
 //char g_Sid[16];

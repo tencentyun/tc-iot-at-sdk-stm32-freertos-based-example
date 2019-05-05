@@ -17,7 +17,7 @@
 #include "string.h"
 
 
-static char sg_shadow_update_buffer[512] = {0};
+static char sg_shadow_update_buffer[AT_CMD_MAX_LEN] = {0};
 size_t sg_shadow_update_buffersize = sizeof(sg_shadow_update_buffer) / sizeof(sg_shadow_update_buffer[0]);
 
 static DeviceProperty sg_shadow_property;
@@ -181,7 +181,6 @@ void shadow_demo_task(void *arg)
 			break;
 		}
 
-		HAL_SleepMs(1000);
 
 		//进行Shdaow Update操作的之前，最后进行一次同步操作，否则可能本机上shadow version和云上不一致导致Shadow Update操作失败
 		rc = IOT_Shadow_Get_Sync(get_shadow_client(), QCLOUD_IOT_MQTT_COMMAND_TIMEOUT);

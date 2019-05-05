@@ -465,7 +465,7 @@ eAtResault at_client_wait_connect(uint32_t timeout)
  * @return >0: send data size
  *		   =0: send failed
  */
-int at_client_obj_send(at_client_t client, char *buf, int size)
+int at_client_send(at_client_t client, char *buf, int size)
 {
 	POINTER_SANITY_CHECK(buf, 0);
 

@@ -30,6 +30,7 @@ typedef enum _eAtResault_{
     AT_ERR_INVAL     									 = -101,   // 表示参数无效错误
     AT_ERR_NULL       									 = -102,   // 表示空指针
     AT_ERR_MALLOC     									 = -103,   // 表示内存申请失败
+    AT_ERR_SEND_DATA   									 = -104,   // 表示AT串口发送失败
    
 
 	AT_ERR_TIMEOUT	  									 = -201,	//响应超时	
