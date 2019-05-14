@@ -189,10 +189,10 @@ static inline int _check_snprintf_return(int32_t returnCode, size_t maxSizeOfWri
 #endif
 	}else{	
 #ifdef TRANSFER_LABEL_NEED	
-				rc_of_snprintf = HAL_Snprintf(jsonBuffer, sizeOfBuffer, "{\\\"method\\\":\\\"%s\\\"\\, \\\"clientToken\\\":\\\"%s\\\"\\, \\\"version\\\":\\\"%s\\\"\\, ", \
+		rc_of_snprintf = HAL_Snprintf(jsonBuffer, sizeOfBuffer, "{\\\"method\\\":\\\"%s\\\"\\, \\\"clientToken\\\":\\\"%s\\\"\\, \\\"version\\\":\\\"%s\\\"\\, ", \
 																				POST_EVENT, pReply->client_token, EVENT_SDK_VERSION);
 #else
-				rc_of_snprintf = HAL_Snprintf(jsonBuffer, sizeOfBuffer, "{\"method\":\"%s\", \"clientToken\":\"%s\", \"version\":\"%s\", ", \
+		rc_of_snprintf = HAL_Snprintf(jsonBuffer, sizeOfBuffer, "{\"method\":\"%s\", \"clientToken\":\"%s\", \"version\":\"%s\", ", \
 																				POST_EVENT, pReply->client_token, EVENT_SDK_VERSION);
 #endif
 

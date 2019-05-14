@@ -83,8 +83,8 @@ class iot_field:
 
             self.min_value = field_obj["define"]["min"]
             self.max_value = field_obj["define"]["max"]
-            self.default_value = self.min_value
-            if self.default_value < self.min_value or self.default_value > self.max_value:
+            self.default_value = field_obj["define"]["start"]
+            if float(self.default_value) < float(self.min_value) or float(self.default_value) > float(self.max_value):
                 raise ValueError("错误：{} 字段 default 指定的默认值超出 min~max 取值范围".format(name))
         elif self.type_name == "int":
             self.type_define = "TYPE_DEF_TEMPLATE_INT"
@@ -92,8 +92,8 @@ class iot_field:
 
             self.min_value = field_obj["define"]["min"]
             self.max_value = field_obj["define"]["max"]
-            self.default_value = self.min_value
-            if self.default_value < self.min_value or self.default_value > self.max_value:
+            self.default_value = field_obj["define"]["start"]
+            if int(self.default_value) < int(self.min_value) or int(self.default_value) > int(self.max_value):
                 raise ValueError("错误：{} 字段 default 指定的默认值超出 min~max 取值范围".format(name))
         elif self.type_name == "string":
             self.type_define = "TYPE_DEF_TEMPLATE_STRING"
@@ -129,9 +129,9 @@ class iot_field:
 
     def get_global_field_declare(self):
         if self.type_id == "TYPE_TEMPLATE_STRING":
-            return "TYPE_DEF_TEMPLATE_STRING sg_{}[{}+1];".format(self.id, str(self.max_value))
+            return "TYPE_DEF_TEMPLATE_STRING sg_{}[{}+1]={};".format(self.id, str(self.max_value),"{0}")
         else:
-            return "{} sg_{};".format(self.type_define, self.id)
+            return "{} sg_{} = {};".format(self.type_define, self.id, self.default_value)
 
     def get_meta_define_str(self, var_name):
         return '{{ "{}", &{}.{}, {} }},' \

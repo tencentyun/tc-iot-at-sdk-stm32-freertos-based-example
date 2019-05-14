@@ -22,6 +22,10 @@ qcloud-iot-sdk-tecent-at-based 面向使用支持腾讯MQTT AT指令的模组(2/
 |   	├───── mqtt  |基于AT框架的mqtt协议实现|
 |   	├───── utils  |json、timer、链表等应用|
 |   	├───── include  |SDK对外头文件及设备信息配置头文件|
+| usr_logic                       | 数据模板框架代码               |
+|   ├───  data_config.c             | 用户定义的数据点                                           |
+|   ├───  events_config.c           | 用户定义的事件                                             |
+|   ├───  data_template_usr_logic.c | 用户业务处理逻辑框架，实现预留的上下行业务逻辑处理函数即可 |
 | tools         | 代码生成脚本 |
 | README.md       | SDK使用说明 |
 

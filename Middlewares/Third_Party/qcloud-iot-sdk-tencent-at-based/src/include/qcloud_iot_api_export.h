@@ -17,9 +17,9 @@
 /* IoT C-SDK version info */
 #define QCLOUD_IOT_AT_SDK_VERSION       "1.0.0"
 #define EVENT_POST_ENABLED
+#define TRANSFER_LABEL_NEED			1					// 转义符号是否需要。模组对json格式数据处理有些小差别
 
-#define  MODULE_TYPE					eMODULE_ESP8266
-#define  TRANSFER_LABEL_NEED			1					// 转义符号是否需要。模组对json格式数据处理有些小差别
+#define MODULE_TYPE_WIFI
 
 
 #define AT_CMD_MAX_LEN                 1024
@@ -36,6 +36,7 @@
 #include "qcloud_iot_export_shadow.h"
 #include "qcloud_iot_export_event.h"
 #include "qcloud_iot_export_error.h"
+
 
 
 

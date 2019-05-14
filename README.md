@@ -89,29 +89,39 @@ hal层对外的API接口及HAL层宏开关控制。
 ##### 2.4 **module_api_inf.c**：
 配网/注网 API业务适配，该源文件基于腾讯定义的AT指令实现了MQTT的交互，但有一个关于联网/注网的API(module_register_network)需要根据模组适配。示例基于[ESP8266腾讯定制AT固件](http://git.code.oa.com/iotcloud_teamIII/qcloud-iot-at-esp8266-wifi.git)示例了WIFI直连的方式连接网络，但更常用的场景是根据特定事件（譬如按键）触发配网（softAP/一键配网），这块的逻辑各具体业务逻辑自行实现。ESP8266有封装配网指令和示例APP。对于蜂窝模组，则是使用特定的网络注册指令。开发者参照module_handshake应用AT-SDK的AT框架添加和模组的AT指令交互。 
 
-```	
+```
 //模组联网（NB/2/3/4G注册网络）、wifi配网（一键配网/softAP）暂时很难统一,需要用户根据具体模组适配。
 //开发者参照 module_handshake API使用AT框架的API和模组交互，实现适配。
 eAtResault module_register_network(eModuleType eType)
 {
 	eAtResault result = AT_ERR_SUCCESS;
 	
-#if (MODULE_TYPE == eMODULE_ESP8266)
-	#define WIFI_SSID	"youga_wifi"
-	#define WIFI_PW		"Iot@2018"
-
-
-	/*此处示例传递热点名字直接联网，通常的做法是特定产品根据特定的事件（譬如按键）触发wifi配网（一键配网/softAP）*/
-	result = wifi_connect(WIFI_SSID, WIFI_PW);
-	//result |= wifi_set_test_server_ip("111.230.126.244");
-	if(AT_ERR_SUCCESS != result)
+#ifdef MODULE_TYPE_WIFI	
+	if(eType == eMODULE_ESP8266)
 	{
-		Log_e("wifi connect fail,ret:%d", result);	
+		#define WIFI_SSID	"youga_wifi"
+		#define WIFI_PW		"Iot@2018"
+
+		/*此处示例传递热点名字直接联网，通常的做法是特定产品根据特定的事件（譬如按键）触发wifi配网（一键配网/softAP）*/
+		result = wifi_connect(WIFI_SSID, WIFI_PW);
+		if(AT_ERR_SUCCESS != result)
+		{
+			Log_e("wifi connect fail,ret:%d", result);	
+		}
 	}
+#else	
+	if(eType == eMODULE_N21)
+	{
 	
-#else
-	/*模组网络注册、或者wifi配网需要用户根据所选模组实现*/			
-#endif
+		/*模组网络注册、或者wifi配网需要用户根据所选模组实现*/			
+		result = N21_net_reg();
+		if(AT_ERR_SUCCESS != result)
+		{
+			Log_e("N21 register network fail,ret:%d", result);	
+		}	
+	}
+#endif	
+
 
 	return result;
 }
@@ -174,6 +184,8 @@ void demoTask(void)
 | 1    | shadow_sample.c                | 影子示例，基于AT实现的MQTT协议，进一步封装的影子协议               |
 | 2    | data_template_sample.c         | 通用数据模板及事件功能示例，示例如何基于腾讯物联网平台的数据模板功能快速开发产品|
 | 3    | light_data_template_sample.c   | 基于智能灯的控制场景，示例具体的产品如何应用数据模板及事件功能                |
+
+data_template_sample、light_data_template_sample为 [物联网开发平台](https://cloud.tencent.com/login?s_url=https%3A%2F%2Fconsole.cloud.tencent.com%2Fiotexplorer)示例，mqtt_sample和shadow_sample为[物联网通信平台](https://console.cloud.tencent.com/iotcloud/products) 示例。
 
 ##### 2.7 示例运行
 按照上述描述，修改宏定义 *RUN_SAMPLE_TYPE* 为目标示例，编译烧录后，即可运行

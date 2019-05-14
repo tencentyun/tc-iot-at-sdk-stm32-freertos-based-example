@@ -14,17 +14,19 @@
 
 #include <stdio.h>
 #include <string.h>
+#include "module_api_inf.h"
 #include "qcloud_iot_api_export.h"
 #include "at_client.h"
 #include "utils_timer.h"
+
+
 
 #define  MQTT_CON_FLAG 			(1<<0)
 #define  MQTT_SUB_FLAG			(1<<1)
 #define  MQTT_PUB_FLAG			(1<<2)
 #define  MQTT_STATE_FLAG		(1<<3)
 #define  WIFI_CON_FLAG 			(1<<4)
-
-
+#define  N21_REG_FLAG 			(1<<5)
 
 static uint32_t sg_flags = 0;
 
@@ -67,12 +69,27 @@ static bool waitFlag(uint32_t flag, uint32_t timeout)
 
 }
 
-
+#ifdef MODULE_TYPE_WIFI
 static void urc_wifi_conn_func(const char *data, uint32_t size)
 {
 	Log_d("receve wifi conn urc(%d):%s", size, data);
 	setFlag(WIFI_CON_FLAG);
 }
+#else
+static void urc_n21_reg_func(const char *data, uint32_t size)
+{
+	Log_d("receve reg urc(%d):%s", size, data);
+
+	if(strstr(data,"+CREG: 0,1"))
+	{
+		setFlag(N21_REG_FLAG);
+	}
+	else
+	{
+		clearFlag(N21_REG_FLAG);
+	}
+}
+#endif
 
 
 
@@ -133,7 +150,12 @@ static at_urc urc_table[] = {
         {"+TCMQTTSTATE:",  "\r\n", urc_mqtt_state_func},
         {"+TCOTASTATUS:",  "\r\n", urc_ota_status_func},
         {"+TCMQTTCONN:",   "\r\n", urc_mqtt_conn_func},
+        
+#ifdef MODULE_TYPE_WIFI
         {"WIFI CONNECTED",   "\r\n", urc_wifi_conn_func},
+#else
+		{"+CREG:",   "\r\n", urc_n21_reg_func},
+#endif
        
 };
 
@@ -497,7 +519,7 @@ bool IOT_MQTT_IsConnected(void)
 	return ((getFlag()&MQTT_STATE_FLAG) > 0)?true:false;	
 }
 
-#if (MODULE_TYPE == eMODULE_ESP8266)
+#ifdef MODULE_TYPE_WIFI
 eAtResault wifi_connect(const char *ssid, const char *pw)
 {
 	eAtResault result = AT_ERR_SUCCESS;
@@ -550,6 +572,69 @@ eAtResault wifi_set_test_server_ip(const char *host)
 	return result;
 }
 
+#else
+#define RETRY_TIMES		3
+eAtResault N21_net_reg(void)
+{
+	eAtResault result = AT_ERR_SUCCESS;
+	at_response_t resp = NULL;
+	int retry = 0;
+
+	/* clear sub flag*/
+	clearFlag(N21_REG_FLAG);
+	resp = at_create_resp(128, 0, CMD_TIMEOUT_MS);
+
+	/*module register network need sometime, adjust RETRY_TIMES for your product*/
+	while(retry++ < RETRY_TIMES)
+	{
+		if(AT_ERR_SUCCESS !=  at_exec_cmd(resp, "AT+CREG?"))		
+		{
+			Log_e("cmd AT+CREG? exec err");
+			result = AT_ERR_FAILURE;
+			goto exit;
+		}
+		
+		if(!waitFlag(N21_REG_FLAG, CMD_TIMEOUT_MS))
+		{
+			continue;
+		}else{
+			break;
+		}
+	}
+
+	if(AT_ERR_SUCCESS !=  at_exec_cmd(resp, "AT+CREG?"))		
+	{
+		Log_e("cmd AT+CREG? exec err");
+		result = AT_ERR_FAILURE;
+		goto exit;
+	}
+	
+	if(!waitFlag(N21_REG_FLAG, CMD_TIMEOUT_MS/5))
+	{
+		Log_e("N21 register network timeout");
+		result = AT_ERR_FAILURE;
+		goto exit;
+	}
+
+
+	if(AT_ERR_SUCCESS !=  at_exec_cmd(resp, "AT+XIIC=1"))		
+	{
+		Log_e("cmd AT+XIIC exec err");
+		result = AT_ERR_FAILURE;
+	}
+
+exit:
+
+	if(resp)
+	{
+		at_delete_resp(resp);
+	}
+	
+	return result;
+}
+
+
+#endif
 
 /*
 *模组联网（NB/2/3/4G注册网络）、wifi配网（一键配网/softAP）暂时很难统一,需要用户根据具体模组适配。
@@ -559,25 +644,36 @@ eAtResault module_register_network(eModuleType eType)
 {
 	eAtResault result = AT_ERR_SUCCESS;
 	
-#if (MODULE_TYPE == eMODULE_ESP8266)
-	#define WIFI_SSID	"youga_wifi"
-	#define WIFI_PW		"Iot@2018"
-
-
-	/*此处示例传递热点名字直接联网，通常的做法是特定产品根据特定的事件（譬如按键）触发wifi配网（一键配网/softAP）*/
-	result = wifi_connect(WIFI_SSID, WIFI_PW);
-	if(AT_ERR_SUCCESS != result)
+#ifdef MODULE_TYPE_WIFI	
+	if(eType == eMODULE_ESP8266)
 	{
-		Log_e("wifi connect fail,ret:%d", result);	
+		#define WIFI_SSID	"youga_wifi"
+		#define WIFI_PW		"Iot@2018"
+
+		/*此处示例传递热点名字直接联网，通常的做法是特定产品根据特定的事件（譬如按键）触发wifi配网（一键配网/softAP）*/
+		result = wifi_connect(WIFI_SSID, WIFI_PW);
+		if(AT_ERR_SUCCESS != result)
+		{
+			Log_e("wifi connect fail,ret:%d", result);	
+		}
 	}
+#else	
+	if(eType == eMODULE_N21)
+	{
 	
-#else
-	/*模组网络注册、或者wifi配网需要用户根据所选模组实现*/			
-#endif
+		/*模组网络注册、或者wifi配网需要用户根据所选模组实现*/			
+		result = N21_net_reg();
+		if(AT_ERR_SUCCESS != result)
+		{
+			Log_e("N21 register network fail,ret:%d", result);	
+		}	
+	}
+#endif	
+
 
 	return result;
 }
 
 
-#endif
+
 

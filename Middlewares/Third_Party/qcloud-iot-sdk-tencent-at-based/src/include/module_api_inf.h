@@ -18,17 +18,18 @@
 #include "qcloud_iot_export_mqtt.h"
 
 typedef enum{
-	eMODULE_CELLULAR = 0, //2/3/4/5G NB etc.
-	eMODULE_WIFI = 1,
-	eMODULE_ESP8266 = 1,
-	eMODULE_DEFAULT = 2,
-}eModuleType;
-
-typedef enum{
 	eDISCONNECTED = 0,  //未连接
 	eCONNECTED = 1,		//已连接
 }eMqtt_State;
 
+
+typedef enum{
+	eMODULE_CELLULAR = 0, //2/3/4/5G NB etc.
+	eMODULE_WIFI = 1,
+	eMODULE_ESP8266 = 2,
+	eMODULE_N21 = 3,
+	eMODULE_DEFAULT = 0xFF,
+}eModuleType;
 
 eAtResault module_init(eModuleType eType);
 eAtResault module_handshake(uint32_t timeout);
