@@ -40,63 +40,12 @@ extern "C" {
 #include <stdbool.h>
 #include "at_client.h"
 #include "utils_list.h"
+#include "utils_method.h"
 #include "qcloud_iot_export_shadow.h"
 
 
-
-/* 在任意给定时间内, 处于appending状态的请求最大个数 */
-#define MAX_APPENDING_REQUEST_AT_ANY_GIVEN_TIME                     (10)
-
-/* 一个clientToken的最大长度 */
-#define MAX_SIZE_OF_CLIENT_TOKEN                                    (MAX_SIZE_OF_CLIENT_ID + 10)
-
-/* 一个仅包含clientToken字段的JSON文档的最大长度 */
-#define MAX_SIZE_OF_JSON_WITH_CLIENT_TOKEN                          (MAX_SIZE_OF_CLIENT_TOKEN + 20)
-
-/* 在任意给定时间内, 可以同时操作设备的最大个数 */
-#define MAX_DEVICE_HANDLED_AT_ANY_GIVEN_TIME                        (10)
-
-/* 除设备名称之外, 云端保留主题的最大长度 */
-#define MAX_SIZE_OF_CLOUD_TOPIC_WITHOUT_DEVICE_NAME                 (60)
-
-
-/* 接收云端返回的JSON文档的buffer大小 */
-#define CLOUD_IOT_JSON_RX_BUF_LEN                                   (CLINET_BUFF_LEN + 1)
-
-
-
-
-/**
- * @brief 文档操作请求的参数结构体定义
- */
-typedef struct _RequestParam {
-
-    Method               	method;              	// 文档请求方式: GET, UPDATE, DELETE
-
-    uint32_t             	timeout_sec;         	// 请求超时时间, 单位:s
-
-    OnRequestCallback    	request_callback;    	// 请求回调方法
-
-    void                 	*user_context;          // 用户数据, 会通过回调方法OnRequestCallback返回
-
-} RequestParams;
-
-#define DEFAULT_REQUEST_PARAMS {GET, 4, NULL, NULL};
-
-/**
- * @brief 该结构体用于保存已登记的设备属性及设备属性处理的回调方法
- */
-typedef struct {
-
-    void *property;							// 设备属性
-
-    OnPropRegCallback callback;      // 回调处理函数
-
-} PropertyHandler;
-
 typedef struct _ShadowInnerData {
     uint32_t token_num;
-    uint32_t version;
     int32_t sync_status;
     List *request_list;
     List *property_handle_list;
@@ -105,9 +54,8 @@ typedef struct _ShadowInnerData {
 
 typedef struct _Shadow {
     void *mutex;
-	eShadowType shadow_type;
     ShadowInnerData inner_data;
-	eShadowState status;
+	eClientState status;
 } Qcloud_IoT_Shadow;
 
 

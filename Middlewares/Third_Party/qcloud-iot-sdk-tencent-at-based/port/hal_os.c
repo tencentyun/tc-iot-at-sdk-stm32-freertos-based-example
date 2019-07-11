@@ -18,20 +18,31 @@
 #include <stdarg.h>
 #include <string.h>
 #include "stm32f1xx_hal.h"		
-#include "hal_export.h"
-#include "qcloud_iot_export_mqtt.h"
+#include "qcloud_iot_api_export.h"
+
 
 #ifdef  DEBUG_DEV_INFO_USED
 
-static char sg_product_id[MAX_SIZE_OF_PRODUCT_ID + 1]	 = "PRODUCT_ID";
-static char sg_device_name[MAX_SIZE_OF_DEVICE_NAME + 1]  = "YOUR_DEVICE_NAME";
+/* 产品名称, 与云端同步设备状态时需要  */
+static char sg_product_id[MAX_SIZE_OF_PRODUCT_ID + 1]	 = "7OCRBY34ND";
+/* 设备名称, 与云端同步设备状态时需要 */
+static char sg_device_name[MAX_SIZE_OF_DEVICE_NAME + 1]  = "dev1";
+
+#ifdef DEV_DYN_REG_ENABLED
+/* 产品密钥, 若使能动态注册功能，控制台生成，必填。若不使能，则不用赋值  */
+static char sg_product_secret[MAX_SIZE_OF_PRODUCT_SECRET + 1]  = "YOUR_PRODUCT_SECRET";
+#endif
 
 #ifdef AUTH_MODE_CERT
+/* 客户端证书文件名  非对称加密使用, TLS 证书认证方式*/
 static char sg_device_cert_file_name[MAX_SIZE_OF_DEVICE_CERT_FILE_NAME + 1]      = "YOUR_DEVICE_NAME_cert.crt";
+/* 客户端私钥文件名 非对称加密使用, TLS 证书认证方式*/
 static char sg_device_privatekey_file_name[MAX_SIZE_OF_DEVICE_KEY_FILE_NAME + 1] = "YOUR_DEVICE_NAME_private.key";
 #else
-char sg_device_secret[MAX_SIZE_OF_DEVICE_SERC + 1] = "YOUR_IOT_PSK";
+/* 设备密钥, TLS PSK认证方式*/
+static char sg_device_secret[MAX_SIZE_OF_DEVICE_SERC + 1] = "/Eb0To0fjOVj9TP8o0M4Rg==";
 #endif
+
 
 #endif
 
@@ -192,181 +203,85 @@ void HAL_MutexUnlock(_IN_ void* mutex)
 
 #endif
 
-int HAL_GetProductID(char *pProductId, uint8_t maxlen)
+int HAL_SetDevInfo(void *pdevInfo)
 {
-#ifdef DEBUG_DEV_INFO_USED
-	if(strlen(sg_product_id) > maxlen){
+	int ret = AT_ERR_SUCCESS;;
+	DeviceInfo *devInfo = (DeviceInfo *)pdevInfo;
+	
+
+	if(NULL == pdevInfo){
 		return AT_ERR_FAILURE;
 	}
-
-	memset(pProductId, '\0', maxlen);
-	strncpy(pProductId, sg_product_id, maxlen);
-
-	return AT_ERR_SUCCESS;
-#else
-	HAL_Printf("HAL_GetProductID is not implement");
-	return AT_ERR_FAILURE;
-#endif
-}
-
-
-int HAL_GetDevName(char *pDevName, uint8_t maxlen)
-{
+	
 #ifdef DEBUG_DEV_INFO_USED
-	if(strlen(sg_device_name) > maxlen){
-		return AT_ERR_FAILURE;
-	}
-
-	memset(pDevName, '\0', maxlen);
-	strncpy(pDevName, sg_device_name, maxlen);
-
-	return AT_ERR_SUCCESS;
-#else
-	HAL_Printf("HAL_GetDevName is not implement");
-	return AT_ERR_FAILURE;
-#endif
-}
-
-
-int HAL_SetProductID(const char *pProductId)
-{
-#ifdef DEBUG_DEV_INFO_USED
-	if(strlen(pProductId) > MAX_SIZE_OF_PRODUCT_ID){
-		return AT_ERR_FAILURE;
-	}
-
-	memset(sg_product_id, '\0', MAX_SIZE_OF_PRODUCT_ID);
-	strncpy(sg_product_id, pProductId, MAX_SIZE_OF_PRODUCT_ID);
-
-	return AT_ERR_SUCCESS;
-#else
-	HAL_Printf("HAL_SetProductID is not implement");
-	return AT_ERR_FAILURE;
-#endif
-}
-
-int HAL_SetDevName(const char *pDevName)
-{
-#ifdef DEBUG_DEV_INFO_USED
-	if(strlen(pDevName) > MAX_SIZE_OF_DEVICE_NAME){
-		return AT_ERR_FAILURE;
-	}
-
+	memset(sg_product_id, '\0', MAX_SIZE_OF_PRODUCT_ID);	
 	memset(sg_device_name, '\0', MAX_SIZE_OF_DEVICE_NAME);
-	strncpy(sg_device_name, pDevName, MAX_SIZE_OF_DEVICE_NAME);
-
-	return AT_ERR_SUCCESS;
-#else
-	HAL_Printf("HAL_SetDevName is not implement");
-	return AT_ERR_FAILURE;
+	
+	strncpy(sg_product_id, devInfo->product_id, MAX_SIZE_OF_PRODUCT_ID);
+	strncpy(sg_device_name, devInfo->device_name, MAX_SIZE_OF_DEVICE_NAME);
+	
+#ifdef DEV_DYN_REG_ENABLED
+	memset(sg_product_secret, '\0', MAX_SIZE_OF_PRODUCT_SECRET);
+	strncpy(sg_product_secret, devInfo->product_secret, MAX_SIZE_OF_PRODUCT_KEY);
 #endif
-}
-
-#ifdef AUTH_MODE_CERT	//证书 认证方式
-
-int HAL_GetDevCertName(char *pDevCert, uint8_t maxlen)
-{
-#ifdef DEBUG_DEV_INFO_USED
-	if(strlen(sg_device_cert_file_name) > maxlen){
-		return AT_ERR_FAILURE;
-	}
-
-	memset(pDevCert, '\0', maxlen);
-	strncpy(pDevCert, sg_device_cert_file_name, maxlen);
-
-	return AT_ERR_SUCCESS;
-#else
-	HAL_Printf("HAL_GetDevCertName is not implement");
-	return AT_ERR_FAILURE;
-#endif
-}
-
-int HAL_GetDevPrivateKeyName(char *pDevPrivateKey, uint8_t maxlen)
-{
-#ifdef DEBUG_DEV_INFO_USED
-	if(strlen(sg_device_privatekey_file_name) > maxlen){
-		return AT_ERR_FAILURE;
-	}
-
-	memset(pDevPrivateKey, '\0', maxlen);
-	strncpy(pDevPrivateKey, sg_device_privatekey_file_name, maxlen);
-
-	return AT_ERR_SUCCESS;
-#else
-	HAL_Printf("HAL_GetDevPrivateKeyName is not implement");
-	return AT_ERR_FAILURE;
-#endif
-
-}
-
-int HAL_SetDevCertName(char *pDevCert)
-{
-#ifdef DEBUG_DEV_INFO_USED
-	if(strlen(pDevCert) > MAX_SIZE_OF_DEVICE_CERT_FILE_NAME){
-		return AT_ERR_FAILURE;
-	}
-
+	
+#ifdef 	AUTH_MODE_CERT
 	memset(sg_device_cert_file_name, '\0', MAX_SIZE_OF_DEVICE_CERT_FILE_NAME);
-	strncpy(sg_device_cert_file_name, pDevCert, MAX_SIZE_OF_DEVICE_CERT_FILE_NAME);
-
-	return AT_ERR_SUCCESS;
-#else
-	HAL_Printf("HAL_SetDevCertName is not implement");
-	return AT_ERR_FAILURE;
-#endif
-}
-
-int HAL_SetDevPrivateKeyName(char *pDevPrivateKey)
-{
-#ifdef DEBUG_DEV_INFO_USED
-	if(strlen(pDevPrivateKey) > MAX_SIZE_OF_DEVICE_KEY_FILE_NAME){
-		return AT_ERR_FAILURE;
-	}
-
 	memset(sg_device_privatekey_file_name, '\0', MAX_SIZE_OF_DEVICE_KEY_FILE_NAME);
-	strncpy(sg_device_privatekey_file_name, pDevPrivateKey, MAX_SIZE_OF_DEVICE_KEY_FILE_NAME);
-
-	return AT_ERR_SUCCESS;
+	
+	strncpy(sg_device_cert_file_name, devInfo->devCertFileName, MAX_SIZE_OF_DEVICE_CERT_FILE_NAME);
+	strncpy(sg_device_privatekey_file_name, devInfo->devPrivateKeyFileName, MAX_SIZE_OF_DEVICE_KEY_FILE_NAME);
 #else
-	HAL_Printf("HAL_SetDevPrivateKeyName is not implement");
-	return AT_ERR_FAILURE;
-#endif
-}
-
-#else	//PSK 认证方式
-int HAL_GetDevSec(char *pDevSec, uint8_t maxlen)
-{
-#ifdef DEBUG_DEV_INFO_USED
-	if(strlen(sg_device_secret) > maxlen){
-		return AT_ERR_FAILURE;
-	}
-
-	memset(pDevSec, '\0', maxlen);
-	strncpy(pDevSec, sg_device_secret, maxlen);
-
-	return AT_ERR_SUCCESS;
-#else
-	HAL_Printf("HAL_GetDevSec is not implement");
-	return AT_ERR_FAILURE;
-#endif
-
-
-}
-
-int HAL_SetDevSec(const char *pDevSec)
-{
-#ifdef DEBUG_DEV_INFO_USED
-	if(strlen(pDevSec) > MAX_SIZE_OF_DEVICE_SERC){
-		return AT_ERR_FAILURE;
-	}
-
 	memset(sg_device_secret, '\0', MAX_SIZE_OF_DEVICE_SERC);
-	strncpy(sg_device_secret, pDevSec, MAX_SIZE_OF_DEVICE_SERC);
-
-	return AT_ERR_SUCCESS;
+	strncpy(sg_device_secret, devInfo->devSerc, MAX_SIZE_OF_DEVICE_SERC);
+#endif
+		
 #else
-	HAL_Printf("HAL_SetDevSec is not implement");
-	return AT_ERR_FAILURE;
+	 Log_e("HAL_SetDevInfo is not implement");
+	 (void)devInfo; //eliminate compile warning
+
+	 return AT_ERR_FAILURE;
+
 #endif
+
+	return ret;
 }
+
+int HAL_GetDevInfo(void *pdevInfo)
+{
+	int ret = AT_ERR_SUCCESS;
+	DeviceInfo *devInfo = (DeviceInfo *)pdevInfo;
+
+	if(NULL == pdevInfo){
+		return AT_ERR_FAILURE;
+	}
+	
+	memset((char *)devInfo, '\0', sizeof(DeviceInfo));	
+	
+#ifdef DEBUG_DEV_INFO_USED	
+
+	strncpy(devInfo->product_id, sg_product_id, MAX_SIZE_OF_PRODUCT_ID);
+	strncpy(devInfo->device_name, sg_device_name, MAX_SIZE_OF_DEVICE_NAME);
+	
+#ifdef DEV_DYN_REG_ENABLED
+	memset(devInfo->product_secret, '\0', MAX_SIZE_OF_PRODUCT_SECRET);
+	strncpy(devInfo->product_secret, sg_product_secret, MAX_SIZE_OF_PRODUCT_SECRET);
+#endif	
+	
+#ifdef 	AUTH_MODE_CERT
+	strncpy(devInfo->devCertFileName, sg_device_cert_file_name, MAX_SIZE_OF_DEVICE_CERT_FILE_NAME);
+	strncpy(devInfo->devPrivateKeyFileName, sg_device_privatekey_file_name, MAX_SIZE_OF_DEVICE_KEY_FILE_NAME);
+#else
+	strncpy(devInfo->devSerc, sg_device_secret, MAX_SIZE_OF_DEVICE_SERC);
+#endif 
+
+#else
+   Log_e("HAL_GetDevInfo is not implement");
+
+   return AT_ERR_FAILURE;
 #endif
+
+	return ret;
+}
+
+

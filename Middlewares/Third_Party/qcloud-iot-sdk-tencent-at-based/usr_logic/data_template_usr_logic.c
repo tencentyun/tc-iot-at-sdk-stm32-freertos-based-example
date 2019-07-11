@@ -19,16 +19,18 @@
 #include "data_config.c"
 
 
-static bool sg_delta_arrived = false;
+static bool sg_control_msg_arrived = false;
 static bool sg_dev_report_new_data = false;
 
 
-static char sg_shadow_update_buffer[AT_CMD_MAX_LEN];
-static size_t sg_shadow_update_buffersize = sizeof(sg_shadow_update_buffer) / sizeof(sg_shadow_update_buffer[0]);
+static char sg_data_report_buffer[AT_CMD_MAX_LEN];
+static size_t sg_data_report_buffersize = sizeof(sg_data_report_buffer) / sizeof(sg_data_report_buffer[0]);
 
 #ifdef EVENT_POST_ENABLED
 
 #include "events_config.c"
+
+#ifdef	EVENT_TIMESTAMP_USED
 static void update_events_timestamp(sEvent *pEvents, int count)
 {
 	int i;
@@ -41,11 +43,12 @@ static void update_events_timestamp(sEvent *pEvents, int count)
 		pEvents[i].timestamp = HAL_GetTimeSeconds();
 	}
 }
+#endif 
 
-static void event_post_cb(char *msg)
+static void event_post_cb(char *msg, void *context)
 {
-	Log_d("Reply:%s", msg);
-	clearEventFlag(FLAG_EVENT0|FLAG_EVENT1|FLAG_EVENT2);
+	Log_d("eventReply:%s", msg);
+	clearEventFlag(context, FLAG_EVENT0|FLAG_EVENT1|FLAG_EVENT2);
 }
 
 #endif
@@ -87,8 +90,7 @@ static int update_self_define_value(const char *pJsonDoc, DeviceProperty *pPrope
     return rc;
 }
 
-
-static void OnDeltaTemplateCallback(void *pClient, const char *pJsonValueBuffer, uint32_t valueLength, DeviceProperty *pProperty) 
+static void OnControlMsgCallback(void *pClient, const char *pJsonValueBuffer, uint32_t valueLength, DeviceProperty *pProperty) 
 {
     int i = 0;
 
@@ -103,7 +105,7 @@ static void OnDeltaTemplateCallback(void *pClient, const char *pJsonValueBuffer,
 			}
 		
             Log_i("Property=%s changed", pProperty->key);
-            sg_delta_arrived = true;
+            sg_control_msg_arrived = true;
             return;
         }
     }
@@ -111,18 +113,17 @@ static void OnDeltaTemplateCallback(void *pClient, const char *pJsonValueBuffer,
     Log_e("Property=%s changed no match", pProperty->key);
 }
 
-
 /**
  * 注册数据模板属性
  */
-static int _register_data_template_property(void *pshadow_client)
+static int _register_data_template_property(void *ptemplate_client)
 {
 	int i,rc;
 	
     for (i = 0; i < TOTAL_PROPERTY_COUNT; i++) {
-	    rc = IOT_Shadow_Register_Property(pshadow_client, &sg_DataTemplate[i].data_property, OnDeltaTemplateCallback);
+	    rc = IOT_Template_Register_Property(ptemplate_client, &sg_DataTemplate[i].data_property, OnControlMsgCallback);
 	    if (rc != AT_ERR_SUCCESS) {
-	        rc = IOT_Shadow_Destroy(pshadow_client);
+	        rc = IOT_Template_Destroy(ptemplate_client);
 	        Log_e("register device data template property failed, err: %d", rc);
 	        return rc;
 	    } else {
@@ -133,14 +134,19 @@ static int _register_data_template_property(void *pshadow_client)
 	return AT_ERR_SUCCESS;
 }
 
+static void OnReportReplyCallback(void *pClient, Method method, ReplyAck replyAck, const char *pJsonDocument, void *pUserdata) {
+	Log_i("recv report_reply(ack=%d): %s", replyAck,pJsonDocument);
+}
+
+
 /*用户需要实现的下行数据的业务逻辑,待用户实现*/
-static void deal_down_stream_user_logic(ProductDataDefine   * pData)
+static void deal_down_stream_user_logic(void *pClient, ProductDataDefine   * pData)
 {
 	Log_d("someting about your own product logic wait to be done");
 }
 
 /*用户需要实现的上行数据的业务逻辑,此处仅供示例*/
-static int deal_up_stream_user_logic(DeviceProperty *pReportDataList[], int *pCount)
+static int deal_up_stream_user_logic(void *pClient, DeviceProperty *pReportDataList[], int *pCount)
 {
 	int i, j;
 	
@@ -155,12 +161,6 @@ static int deal_up_stream_user_logic(DeviceProperty *pReportDataList[], int *pCo
 	return (*pCount > 0)?AT_ERR_SUCCESS:AT_ERR_FAILURE;
 }
 
-
-static void OnShadowUpdateCallback(void *pClient, Method method, RequestAck requestAck, const char *pJsonDocument, void *pUserdata) {
-	Log_i("recv shadow update response, response ack: %d", requestAck);
-}
-
-
 static eAtResault net_prepare(void)
 {
 	eAtResault Ret;
@@ -168,11 +168,8 @@ static eAtResault net_prepare(void)
 	DeviceInfo sDevInfo;
 	at_client_t pclient = at_client_get();	
 
-	memset((char *)&sDevInfo, 0, sizeof(DeviceInfo));
-	Ret = (eAtResault)HAL_GetProductID(sDevInfo.product_id, MAX_SIZE_OF_PRODUCT_ID);
-	Ret |= (eAtResault)HAL_GetDevName(sDevInfo.device_name, MAX_SIZE_OF_DEVICE_NAME);
-	Ret |= (eAtResault)HAL_GetDevSec(sDevInfo.devSerc, MAX_SIZE_OF_DEVICE_SERC);
-	
+	memset((char *)&sDevInfo, '\0', sizeof(DeviceInfo));
+	Ret = (eAtResault)HAL_GetDevInfo(&sDevInfo);
 	if(AT_ERR_SUCCESS != Ret){
 		Log_e("Get device info err");
 		return AT_ERR_FAILURE;
@@ -193,7 +190,6 @@ static eAtResault net_prepare(void)
 	{
 		hal_thread_create(&threadId, PARSE_THREAD_STACK_SIZE, osPriorityNormal, pclient->parser, pclient);
 	}
-
 
 	while(AT_STATUS_INITIALIZED != pclient->status)
 	{	
@@ -230,7 +226,7 @@ exit:
 	return Ret;
 }
 
-static void eventPostCheck(void)
+static void eventPostCheck(void *client)
 {
 #ifdef EVENT_POST_ENABLED	
 	int rc;
@@ -240,22 +236,25 @@ static void eventPostCheck(void)
 	uint8_t event_count;
 		
 	//事件上报
-	setEventFlag(FLAG_EVENT0|FLAG_EVENT1|FLAG_EVENT2);
-	eflag = getEventFlag();
+	setEventFlag(client, FLAG_EVENT0|FLAG_EVENT1|FLAG_EVENT2);
+	eflag = getEventFlag(client);
 	if((EVENT_COUNTS > 0 )&& (eflag > 0))
 	{	
 		event_count = 0;
 		for(i = 0; i < EVENT_COUNTS; i++)
 		{
+		
 			if((eflag&(1<<i))&ALL_EVENTS_MASK)
 			{
-				 pEventList[event_count++] = &(g_events[i]);
+				 pEventList[event_count++] = &(g_events[i]);				 
+				 clearEventFlag(client, 1<<i);
+#ifdef	EVENT_TIMESTAMP_USED				 
 				 update_events_timestamp(&g_events[i], 1);
-				 clearEventFlag(1<<i);
-			}
+#endif
+			}			
 		}	
 
-		rc = qcloud_iot_post_event(get_shadow_client(), sg_shadow_update_buffer, sg_shadow_update_buffersize, \
+		rc = qcloud_iot_post_event(client, sg_data_report_buffer, sg_data_report_buffersize, \
 											event_count, pEventList, event_post_cb);
 		if(rc < 0)
 		{
@@ -266,11 +265,38 @@ static void eventPostCheck(void)
 
 }
 
+/*用户需要实现设备信息获取,此处示例实现*/
+static int _get_sys_info(void *handle, char *pJsonDoc, size_t sizeOfBuffer)
+{
+	/*平台处理字段，必选字段至少有一个*/
+    DeviceProperty plat_info[] = {
+     	{.key = "module_hardinfo", .type = TYPE_TEMPLATE_STRING, .data = "ESP8266"},
+     	{.key = "module_softinfo", .type = TYPE_TEMPLATE_STRING, .data = "V1.0"},
+     	{.key = "fw_ver", 		   .type = TYPE_TEMPLATE_STRING, .data = "V3.0.1"},
+     	{.key = "imei", 		   .type = TYPE_TEMPLATE_STRING, .data = "11-22-33-44"},
+     	{.key = "lat", 			   .type = TYPE_TEMPLATE_STRING, .data = "22.546015"},
+     	{.key = "lon", 			   .type = TYPE_TEMPLATE_STRING, .data = "113.941125"},
+        {NULL, NULL, JINT32}  //结束
+	};
+		
+	/*自定义附加信息*/
+	DeviceProperty self_info[] = {
+        {.key = "append_info", .type = TYPE_TEMPLATE_STRING, .data = "your self define ifno"},
+        {NULL, NULL, JINT32}  //结束
+	};
+
+	return IOT_Template_JSON_ConstructSysInfo(handle, pJsonDoc, sizeOfBuffer, plat_info, self_info); 	
+}
+
+
 void data_template_demo_task(void *arg)
 {
 	eAtResault Ret;
 	int rc;
+	int ReportCont;
+	void *client = NULL;
 	at_client_t pclient = at_client_get();	
+	DeviceProperty *pReportDataList[TOTAL_PROPERTY_COUNT];
 
 	Log_d("shadow_demo_task Entry...");
 
@@ -314,32 +340,23 @@ void data_template_demo_task(void *arg)
 		}
 
 
-		Ret = IOT_Shadow_Construct(eTEMPLATE);
+		Ret = (eAtResault)IOT_Template_Construct(&client);
 		if(AT_ERR_SUCCESS != Ret)
 		{
-			Log_e("shadow construct fail,Ret:%d", Ret);
+			Log_e("data template construct fail,Ret:%d", Ret);
 			break;
 		}
 		else
 		{
-			Log_d("shadow construct success");
+			Log_d("data template construct success");
 		}
 
 		//init data template
 		_init_data_template();
 
-	
-#ifdef EVENT_POST_ENABLED
-		rc = event_init(get_shadow_client());
-		if (rc < 0) 
-		{
-			Log_e("event init failed: %d", rc);
-			break;
-		}
-#endif
-			
+				
 		//register data template propertys here
-		rc = _register_data_template_property(get_shadow_client());
+		rc = _register_data_template_property(client);
 		if (rc == AT_ERR_SUCCESS) 
 		{
 			Log_i("Register data template propertys Success");
@@ -349,100 +366,103 @@ void data_template_demo_task(void *arg)
 			Log_e("Register data template propertys Failed: %d", rc);
 			break;
 		}
+			
+		//上报设备信息,平台根据这个信息提供产品层面的数据分析,譬如位置服务等
+		rc = _get_sys_info(client, sg_data_report_buffer, sg_data_report_buffersize);
+		if(AT_ERR_SUCCESS == rc)
+		{
+			rc = IOT_Template_Report_SysInfo_Sync(client, sg_data_report_buffer, sg_data_report_buffersize, QCLOUD_IOT_MQTT_COMMAND_TIMEOUT);	
+			if (rc != AT_ERR_SUCCESS) 
+			{
+				Log_e("Report system info fail, err: %d", rc);
+				break;
+			}
+		}
+		else
+		{
+			Log_e("Get system info fail, err: %d", rc);
+			break;
+		}
 
-
-		//进行Shdaow Update操作的之前，最后进行一次同步操作，否则可能本机上shadow version和云上不一致导致Shadow Update操作失败
-		rc = IOT_Shadow_Get_Sync(get_shadow_client(), QCLOUD_IOT_MQTT_COMMAND_TIMEOUT);
+		//获取离线期间数据
+		rc = IOT_Template_GetStatus_sync(client, QCLOUD_IOT_MQTT_COMMAND_TIMEOUT);
 		if (rc != AT_ERR_SUCCESS) 
 		{
-			Log_e("get device shadow failed, err: %d", rc);
+			Log_e("Get data status fail, err: %d", rc);
 			break;
-		}	
+		}
+		else
+		{
+			Log_d("Get data status success");
+		}
 
 
 		while(1)
 		{
 			HAL_SleepMs(1000);
-			IOT_Shadow_Yield(2000);
+			IOT_Template_Yield(client, 2000);
 			
 			/*服务端下行消息，业务处理逻辑1入口*/
-			if (sg_delta_arrived) 
-			{						
-		       	deal_down_stream_user_logic(&sg_ProductData);
-
-				/*业务逻辑处理完后需要同步通知服务端:设备数据已更新，删除dseire数据*/	
-	            int rc = IOT_Shadow_JSON_ConstructDesireAllNull(get_shadow_client(), sg_shadow_update_buffer, sg_shadow_update_buffersize);
-	            if (rc == AT_ERR_SUCCESS) 
-				{
-	                rc = IOT_Shadow_Update_Sync(get_shadow_client(), sg_shadow_update_buffer, sg_shadow_update_buffersize, QCLOUD_IOT_MQTT_COMMAND_TIMEOUT);
-	                sg_delta_arrived = false;
-	                if (rc == AT_ERR_SUCCESS) 
-					{
-	                    Log_i("shadow update(desired) success");
-	                } 
-					else 
-					{
-	                    Log_e("shadow update(desired) failed, err: %d", rc);
-	                }
-
-	            } 
-				else 
-				{
-	                Log_e("construct desire failed, err: %d", rc);
+			if (sg_control_msg_arrived) {	
+				
+				deal_down_stream_user_logic(client, &sg_ProductData);				
+				//业务逻辑处理完后需要通知服务端control msg 已收到，请服务端删除control msg，否则服务端会保留control msg(通过Get status命令可以得到未删除的Control数据)
+				sControlReplyPara replyPara;
+				memset((char *)&replyPara, 0, sizeof(sControlReplyPara));
+				replyPara.code = eDEAL_SUCCESS;
+				replyPara.timeout_ms = QCLOUD_IOT_MQTT_COMMAND_TIMEOUT;						
+				replyPara.status_msg[0] = '\0';			//可以通过 replyPara.status_msg 添加附加消息，一般在失败情况下才添加
+				
+				rc = IOT_Template_ControlReply(client, sg_data_report_buffer, sg_data_report_buffersize, &replyPara);
+	            if (rc == AT_ERR_SUCCESS) {
+					Log_d("Contol msg reply success");
+					sg_control_msg_arrived = false;   
+	            } else {
+	                Log_e("Contol msg reply failed, err: %d", rc);
+					break;
 	            }
 
 				sg_dev_report_new_data = true; //用户需要根据业务情况修改上报flag的赋值位置,此处仅为示例
-			}	
-			else
-			{			
-				Log_d("No delta msg received...");
+			}	else{
+				//Log_d("No delta msg received...");
 			}
 
 			/*设备上行消息,业务逻辑2入口*/
-			if(sg_dev_report_new_data)
-			{
+			if(sg_dev_report_new_data){
 				
-				DeviceProperty *pReportDataList[TOTAL_PROPERTY_COUNT];
-				int ReportCont;
-
-				/*delta消息是属性的desire和属性的report的差异集，收到deseire消息处理后，要report属性的状态*/	
-				if(AT_ERR_SUCCESS == deal_up_stream_user_logic(pReportDataList, &ReportCont))
-				{
+				/*上报属性的最新状态，应用侧可以通过report的状态确认control的命令是否执行成功*/
+				if(AT_ERR_SUCCESS == deal_up_stream_user_logic(client, pReportDataList, &ReportCont)){
 					
-					rc = IOT_Shadow_JSON_ConstructReportArray(get_shadow_client(), sg_shadow_update_buffer, sg_shadow_update_buffersize, ReportCont, pReportDataList);
-			        if (rc == AT_ERR_SUCCESS) 
-					{
-			            rc = IOT_Shadow_Update(get_shadow_client(), sg_shadow_update_buffer, sg_shadow_update_buffersize, 
-			                    OnShadowUpdateCallback, NULL, QCLOUD_IOT_MQTT_COMMAND_TIMEOUT);
-			            if (rc == AT_ERR_SUCCESS) 
-						{
+					rc = IOT_Template_JSON_ConstructReportArray(client, sg_data_report_buffer, sg_data_report_buffersize, ReportCont, pReportDataList);
+					if (rc == AT_ERR_SUCCESS) {
+						rc = IOT_Template_Report(client, sg_data_report_buffer, sg_data_report_buffersize, 
+													OnReportReplyCallback, NULL, QCLOUD_IOT_MQTT_COMMAND_TIMEOUT);
+						if (rc == AT_ERR_SUCCESS) {
 							sg_dev_report_new_data = false;
-			                Log_i("shadow update(reported) success");
-			            } 
-						else 
-						{
-			                Log_e("shadow update(reported) failed, err: %d", rc);
-			            }
-			        }
-					else 
-					{
-			            Log_e("construct reported failed, err: %d", rc);
-			        }
-
-				}
-				else
-				{
+							Log_i("data template reporte success");
+						} else {
+							Log_e("data template reporte failed, err: %d", rc);
+							break;
+						}
+					} else {
+						Log_e("construct reporte data failed, err: %d", rc);
+						break;
+					}
+			
+				}else{
 					 Log_d("no data need to be reported or someting goes wrong");
 				}
-			}else{
-				Log_d("No device data need to be reported...");
+			}	else{			
+				//Log_d("No device data need to be reported...");
 			}
+
 			
-			eventPostCheck();
+			eventPostCheck(client);
 		}				
 	}while (0);
 	
 	hal_thread_destroy(NULL);
+	Log_e("Task teminated,Something goes wrong!!!");
 }
 
 void data_template_sample(void)

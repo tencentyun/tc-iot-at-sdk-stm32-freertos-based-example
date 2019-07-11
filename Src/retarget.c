@@ -19,8 +19,8 @@
 #include "stm32f1xx_hal.h"
 
 
-extern UART_HandleTypeDef huart2;
-UART_HandleTypeDef *pDebugUart = &huart2;
+extern UART_HandleTypeDef huart1;
+UART_HandleTypeDef *pDebugUart = &huart1;
 
 
 

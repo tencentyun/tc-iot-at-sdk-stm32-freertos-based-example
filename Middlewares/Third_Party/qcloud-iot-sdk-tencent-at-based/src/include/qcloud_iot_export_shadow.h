@@ -21,125 +21,7 @@ extern "C" {
 #endif
 
 #include "qcloud_iot_export_mqtt.h"
-
-typedef enum _eShadowType_{
-	eSHADOW = 0,
-	eTEMPLATE = 1,
-}eShadowType;
-
-
-typedef enum _eShadowState_{
-	eSHADOW_UNINITIALIZED = 0,
-	eSHADOW_INITIALIZED = 1,
-}eShadowState;
-
-
-
-/**
- * @brief 请求响应返回的类型
- */
-typedef enum {
-    ACK_NONE = -3,      // 请求超时
-    ACK_TIMEOUT = -2,   // 请求超时
-    ACK_REJECTED = -1,  // 请求拒绝
-    ACK_ACCEPTED = 0    // 请求接受
-} RequestAck;
-
-
-/**
- * @brief 操作云端设备文档可以使用的三种方式
- */
-typedef enum {
-    GET,     // 获取云端设备文档
-    UPDATE,  // 更新或创建云端设备文档
-} Method;
-
-
-/**
- * @brief JSON文档中支持的数据类型
- */
-typedef enum {
-    JINT32,     // 32位有符号整型
-    JINT16,     // 16位有符号整型
-    JINT8,      // 8位有符号整型
-    JUINT32,    // 32位无符号整型
-    JUINT16,    // 16位无符号整型
-    JUINT8,     // 8位无符号整型
-    JFLOAT,     // 单精度浮点型
-    JDOUBLE,    // 双精度浮点型
-    JBOOL,      // 布尔型
-    JSTRING,    // 字符串
-    JOBJECT     // JSON对象
-} JsonDataType;
-
-/**
- * @brief 定义设备的某个属性, 实际就是一个JSON文档节点
- */
-typedef struct _JSONNode {
-    char   		 *key;    // 该JSON节点的Key
-    void         *data;   // 该JSON节点的Value
-    JsonDataType type;    // 该JSON节点的数据类型
-} DeviceProperty;
-
-
-/**
- * @brief 定义数据模板的数据点类型
- */
- 
-#define TYPE_TEMPLATE_INT    	JINT32
-#define TYPE_TEMPLATEENUM    	JINT32
-#define TYPE_TEMPLATE_FLOAT  	JFLOAT
-#define TYPE_TEMPLATE_BOOL   	JINT8
-#define TYPE_TEMPLATE_STRING 	JSTRING
-#define TYPE_TEMPLATE_TIME 		JUINT32
-#define TYPE_TEMPLATE_JOBJECT 	JOBJECT
-
-
-
-typedef int32_t   TYPE_DEF_TEMPLATE_INT;
-typedef int32_t   TYPE_DEF_TEMPLATE_ENUM;
-typedef float     TYPE_DEF_TEMPLATE_FLOAT;
-typedef char      TYPE_DEF_TEMPLATE_BOOL;
-typedef char      TYPE_DEF_TEMPLATE_STRING;
-typedef uint32_t  TYPE_DEF_TEMPLATE_TIME;
-typedef void *    TYPE_DEF_TEMPLATE_OBJECT;
-
-/**
- * @brief 定义数据模板的属性状态
- */
-typedef enum _eDataState_{
-    eNOCHANGE = 0,
-	eCHANGED = 1,	
-} eDataState;
-
-/**
- * @brief 定义数据模板的属性结构
- */
-typedef struct {
-    DeviceProperty data_property;
-    eDataState state;
-} sDataPoint;
-
-
-/**
- * @brief 每次文档请求响应的回调函数
- *
- * @param method         文档操作方式
- * @param requestAck     请求响应类型
- * @param pJsonDocument  云端响应返回的文档
- * @param userContext      用户数据
- *
- */
-typedef void (*OnRequestCallback)(void *pClient, Method method, RequestAck requestAck, const char *pJsonDocument, void *userContext);
-
-/**
- * @brief 设备属性处理回调函数
- *
- * @param pJsonValueBuffer 设备属性值
- * @param valueLength      设备属性值长度
- * @param DeviceProperty   设备属性结构体
- */
-typedef void (*OnPropRegCallback)(void *pClient, const char *pJsonValueBuffer, uint32_t valueLength, DeviceProperty *pProperty);
+#include "qcloud_iot_export_method.h"
 
 /**
  * @brief 构造ShadowClient
@@ -148,7 +30,7 @@ typedef void (*OnPropRegCallback)(void *pClient, const char *pJsonValueBuffer, u
  *
  * @return @see eAtResault
  */
-eAtResault IOT_Shadow_Construct(eShadowType eType);
+eAtResault IOT_Shadow_Construct(void **client);
 
 
 /**
@@ -162,7 +44,7 @@ void *get_shadow_client(void);
 /**
  * @brief 客户端目前是否已连接
  *
- * @param pClient Shadow Client结构体
+ * @param handle     影子client
  * @return 返回true, 表示客户端已连接
  */
 bool IOT_Shadow_IsConnected(void *handle);
@@ -179,10 +61,11 @@ int IOT_Shadow_Destroy(void *handle);
 /**
  * @brief 消息接收, 心跳包管理, 超时请求处理
  *
+ * @param handle 	 影子client
  * @param timeout_ms 超时时间, 单位:ms
  * @return           返回AT_ERR_SUCCESS, 表示调用成功
  */
-void IOT_Shadow_Yield(uint32_t timeout_ms);
+void IOT_Shadow_Yield(void *handle, uint32_t timeout_ms);
 
 /**
  * @brief 异步方式更新设备影子文档

@@ -16,14 +16,14 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-	
-#include "shadow_client_common.h"
+
+#include "data_template_client_common.h"
 #include "qcloud_iot_api_export.h"
 
 /**
  * @brief 将注册属性的回调函数保存到列表之中
  */
-static int _add_property_handle_to_list(Qcloud_IoT_Shadow *pShadow, DeviceProperty *pProperty, OnPropRegCallback callback)
+static int _add_property_handle_to_template_list(Qcloud_IoT_Template *pTemplate, DeviceProperty *pProperty, OnPropRegCallback callback)
 {
     IOT_FUNC_ENTRY;
 
@@ -42,45 +42,45 @@ static int _add_property_handle_to_list(Qcloud_IoT_Shadow *pShadow, DeviceProper
         Log_e("run list_node_new is error!");
         IOT_FUNC_EXIT_RC(AT_ERR_FAILURE);
     }
-    list_rpush(pShadow->inner_data.property_handle_list, node);
+    list_rpush(pTemplate->inner_data.property_handle_list, node);
 
     IOT_FUNC_EXIT_RC(AT_ERR_SUCCESS);
 }
 
-int shadow_common_check_property_existence(Qcloud_IoT_Shadow *pshadow, DeviceProperty *pProperty)
+int template_common_check_property_existence(Qcloud_IoT_Template *ptemplate, DeviceProperty *pProperty)
 {
     ListNode *node;
 
-    HAL_MutexLock(pshadow->mutex);
-    node = list_find(pshadow->inner_data.property_handle_list, pProperty);
-    HAL_MutexUnlock(pshadow->mutex);
+    HAL_MutexLock(ptemplate->mutex);
+    node = list_find(ptemplate->inner_data.property_handle_list, pProperty);
+    HAL_MutexUnlock(ptemplate->mutex);
 
     return (NULL != node);
 }
 
-int shadow_common_remove_property(Qcloud_IoT_Shadow *pshadow, DeviceProperty *pProperty)
+int template_common_remove_property(Qcloud_IoT_Template *ptemplate, DeviceProperty *pProperty)
 {
     int rc = AT_ERR_SUCCESS;
 
     ListNode *node;
-    HAL_MutexLock(pshadow->mutex);
-    node = list_find(pshadow->inner_data.property_handle_list, pProperty);
+    HAL_MutexLock(ptemplate->mutex);
+    node = list_find(ptemplate->inner_data.property_handle_list, pProperty);
     if (NULL == node) {
         rc = AT_ERR_PROPERTY_NOT_EXIST;
         Log_e("Try to remove a non-existent property.");
     } else {
-        list_remove(pshadow->inner_data.property_handle_list, node);
+        list_remove(ptemplate->inner_data.property_handle_list, node);
     }
-    HAL_MutexUnlock(pshadow->mutex);
+    HAL_MutexUnlock(ptemplate->mutex);
     
     return rc;
 }
 
-int shadow_common_register_property_on_delta(Qcloud_IoT_Shadow *pShadow, DeviceProperty *pProperty, OnPropRegCallback callback)
+int template_common_register_property_on_delta(Qcloud_IoT_Template *pTemplate, DeviceProperty *pProperty, OnPropRegCallback callback)
 {
     IOT_FUNC_ENTRY;
 
-    POINTER_SANITY_CHECK(pShadow, AT_ERR_INVAL);
+    POINTER_SANITY_CHECK(pTemplate, AT_ERR_INVAL);
     POINTER_SANITY_CHECK(callback, AT_ERR_INVAL);
     POINTER_SANITY_CHECK(pProperty, AT_ERR_INVAL);
     POINTER_SANITY_CHECK(pProperty->key, AT_ERR_INVAL);
@@ -88,9 +88,9 @@ int shadow_common_register_property_on_delta(Qcloud_IoT_Shadow *pShadow, DeviceP
 
     int rc;
 
-    HAL_MutexLock(pShadow->mutex);
-    rc = _add_property_handle_to_list(pShadow, pProperty, callback);
-    HAL_MutexUnlock(pShadow->mutex);
+    HAL_MutexLock(pTemplate->mutex);
+    rc = _add_property_handle_to_template_list(pTemplate, pProperty, callback);
+    HAL_MutexUnlock(pTemplate->mutex);
 
     IOT_FUNC_EXIT_RC(rc);
 }

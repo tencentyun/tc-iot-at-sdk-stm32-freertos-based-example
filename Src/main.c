@@ -60,8 +60,9 @@
 #define LIGHT_SCENARY_SAMPLE	4
 #define RUN_SAMPLE_TYPE			LIGHT_SCENARY_SAMPLE
 
-//uint8_t g_PosRow = 0;
-//char g_Sid[16];
+
+uint8_t g_PosRow = 0;
+char g_Sid[16];
 
 
 /**
@@ -120,14 +121,13 @@ int main(void)
 	printf("\n\rBoard init over");
 	
 	/*示例工程除MCU外不访问外设资源*/
-	//InitRGBState();	
-	//OledInit();	
-	//OledShowString(0, &g_PosRow, "system start...", CHAR_WID_8, false); 
+	InitRGBState();	
+	OledInit();	
+	OledShowString(0, &g_PosRow, "system start...", CHAR_WID_8, false); 
 
 	printf("\n\rSysclk[%d] TickFreq[%d]", HAL_RCC_GetHCLKFreq(),HAL_GetTickFreq());
 
 	mem_info();
-
 
 	/*目前AT SDK基于多线程的框架，所以OS是必须的*/
 #ifdef OS_USED

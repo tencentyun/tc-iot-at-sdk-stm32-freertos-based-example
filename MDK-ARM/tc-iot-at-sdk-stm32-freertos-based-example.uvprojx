@@ -330,9 +330,9 @@
             <vShortWch>1</vShortWch>
             <VariousControls>
               <MiscControls></MiscControls>
-              <Define>USE_HAL_DRIVER,STM32F103xE,</Define>
+              <Define>USE_HAL_DRIVER,STM32F103xE,MQTT_SHADOW_ENABLE,MQTT_DATA_TEMPLATE_ENABLED,EVENT_POST_ENABLED</Define>
               <Undefine></Undefine>
-              <IncludePath>../Inc;../Drivers/STM32F1xx_HAL_Driver/Inc;../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy;../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM3;../Drivers/CMSIS/Device/ST/STM32F1xx/Include;../Middlewares/Third_Party/FreeRTOS/Source/include;../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS;../Drivers/CMSIS/Include;../Middlewares/Third_Party/qcloud-iot-sdk-embedded-c/src/platform;../Middlewares/Third_Party/qcloud-iot-sdk-embedded-c/src/device/include;../Middlewares/Third_Party/qcloud-iot-sdk-embedded-c/src/mqtt/include;../Middlewares/Third_Party/qcloud-iot-sdk-embedded-c/src/sdk-impl;../Middlewares/Third_Party/qcloud-iot-sdk-embedded-c/src/utils/digest;../Middlewares/Third_Party/qcloud-iot-sdk-embedded-c/src/utils/farra;../Middlewares/Third_Party/qcloud-iot-sdk-embedded-c/src/utils/lite;../Middlewares/Third_Party/qcloud-iot-sdk-embedded-c/src/sdk-impl/exports;../Middlewares/Third_Party/qcloud-iot-sdk-embedded-c/src/platform/os/freertos/include;../Src/se_uart_inf/HEDSE_HAL;../Src/se_uart_inf/HEDSE_COMM/AlgrithomComm;../Src/se_uart_inf/HEDSE_COMM/AuthComm;../Src/se_uart_inf/HEDSE_COMM/ChallengeComm;../Src/se_uart_inf/HEDSE_COMM/FileComm;../Src/se_uart_inf/HEDSE_COMM/KeyComm;../Src/se_uart_inf/HEDSE_COMM/PinComm;../Src/se_uart_inf/HEDSE_COMM/BaseComm;../Src/se_uart_inf/HEDSE_COMM/TestMain;../Src/se_uart_inf/HEDSE_COMM/IDComm;../Middlewares/Third_Party/qcloud-iot-sdk-tencent-at-based/src/include;../Middlewares/Third_Party/qcloud-iot-sdk-tencent-at-based/port/include;../Middlewares/Third_Party/qcloud-iot-sdk-tencent-at-based/src/shadow/include;../Middlewares/Third_Party/qcloud-iot-sdk-tencent-at-based/src/utils/include</IncludePath>
+              <IncludePath>../Inc;../Drivers/STM32F1xx_HAL_Driver/Inc;../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy;../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM3;../Drivers/CMSIS/Device/ST/STM32F1xx/Include;../Middlewares/Third_Party/FreeRTOS/Source/include;../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS;../Drivers/CMSIS/Include;../Middlewares/Third_Party/qcloud-iot-sdk-embedded-c/src/platform;../Middlewares/Third_Party/qcloud-iot-sdk-embedded-c/src/device/include;../Middlewares/Third_Party/qcloud-iot-sdk-embedded-c/src/mqtt/include;../Middlewares/Third_Party/qcloud-iot-sdk-embedded-c/src/sdk-impl;../Middlewares/Third_Party/qcloud-iot-sdk-embedded-c/src/utils/digest;../Middlewares/Third_Party/qcloud-iot-sdk-embedded-c/src/utils/farra;../Middlewares/Third_Party/qcloud-iot-sdk-embedded-c/src/utils/lite;../Middlewares/Third_Party/qcloud-iot-sdk-embedded-c/src/sdk-impl/exports;../Middlewares/Third_Party/qcloud-iot-sdk-embedded-c/src/platform/os/freertos/include;../Src/se_uart_inf/HEDSE_HAL;../Src/se_uart_inf/HEDSE_COMM/AlgrithomComm;../Src/se_uart_inf/HEDSE_COMM/AuthComm;../Src/se_uart_inf/HEDSE_COMM/ChallengeComm;../Src/se_uart_inf/HEDSE_COMM/FileComm;../Src/se_uart_inf/HEDSE_COMM/KeyComm;../Src/se_uart_inf/HEDSE_COMM/PinComm;../Src/se_uart_inf/HEDSE_COMM/BaseComm;../Src/se_uart_inf/HEDSE_COMM/TestMain;../Src/se_uart_inf/HEDSE_COMM/IDComm;../Middlewares/Third_Party/qcloud-iot-sdk-tencent-at-based/src/include;../Middlewares/Third_Party/qcloud-iot-sdk-tencent-at-based/port/include;../Middlewares/Third_Party/qcloud-iot-sdk-tencent-at-based/src/shadow/include;../Middlewares/Third_Party/qcloud-iot-sdk-tencent-at-based/src/utils/include;../Middlewares/Third_Party/qcloud-iot-sdk-tencent-at-based/src/data_template/include</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -581,11 +581,6 @@
               <FilePath>..\Middlewares\Third_Party\qcloud-iot-sdk-tencent-at-based\src\shadow\shadow_client.c</FilePath>
             </File>
             <File>
-              <FileName>shadow_client_json.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Middlewares\Third_Party\qcloud-iot-sdk-tencent-at-based\src\shadow\shadow_client_json.c</FilePath>
-            </File>
-            <File>
               <FileName>shadow_client_common.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Middlewares\Third_Party\qcloud-iot-sdk-tencent-at-based\src\shadow\shadow_client_common.c</FilePath>
@@ -661,9 +656,29 @@
               <FilePath>..\Middlewares\Third_Party\qcloud-iot-sdk-tencent-at-based\src\module_at\at_timer.c</FilePath>
             </File>
             <File>
-              <FileName>qcloud_iot_event.c</FileName>
+              <FileName>utils_method.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\Middlewares\Third_Party\qcloud-iot-sdk-tencent-at-based\src\event\qcloud_iot_event.c</FilePath>
+              <FilePath>..\Middlewares\Third_Party\qcloud-iot-sdk-tencent-at-based\src\utils\utils_method.c</FilePath>
+            </File>
+            <File>
+              <FileName>data_template_client.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Middlewares\Third_Party\qcloud-iot-sdk-tencent-at-based\src\data_template\src\data_template_client.c</FilePath>
+            </File>
+            <File>
+              <FileName>data_template_client_common.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Middlewares\Third_Party\qcloud-iot-sdk-tencent-at-based\src\data_template\src\data_template_client_common.c</FilePath>
+            </File>
+            <File>
+              <FileName>data_template_client_manager.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Middlewares\Third_Party\qcloud-iot-sdk-tencent-at-based\src\data_template\src\data_template_client_manager.c</FilePath>
+            </File>
+            <File>
+              <FileName>data_template_event.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Middlewares\Third_Party\qcloud-iot-sdk-tencent-at-based\src\data_template\src\data_template_event.c</FilePath>
             </File>
           </Files>
         </Group>

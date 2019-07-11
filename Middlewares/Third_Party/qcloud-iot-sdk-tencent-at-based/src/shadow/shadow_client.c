@@ -15,7 +15,6 @@
 #include <stdio.h>
 #include <string.h>
 #include "shadow_client.h"
-#include "shadow_client_json.h"
 #include "shadow_client_common.h"
 #include "qcloud_iot_api_export.h"
 
@@ -33,7 +32,6 @@ static eAtResault _qcloud_iot_shadow_init(Qcloud_IoT_Shadow *pShadow)
 {
 	POINTER_SANITY_CHECK(pShadow, AT_ERR_INVAL);
 
-	pShadow->inner_data.version = 0;
 	pShadow->mutex = HAL_MutexCreate();
 	if (pShadow->mutex == NULL)
 	{
@@ -68,15 +66,13 @@ static eAtResault _qcloud_iot_shadow_init(Qcloud_IoT_Shadow *pShadow)
 }
 
 
- eAtResault IOT_Shadow_Construct(eShadowType eType)
+ eAtResault IOT_Shadow_Construct(void **client)
 {
 	eAtResault rc;
 	Qcloud_IoT_Shadow *shadow_client = get_shadow_client();
 
-	shadow_client->status = eSHADOW_UNINITIALIZED;
-	shadow_client->shadow_type = eType;
+	shadow_client->status = eCLIENT_UNINITIALIZED;
 	shadow_client->inner_data.result_topic = NULL;
-	shadow_client->inner_data.version = 0;
 	shadow_client->inner_data.token_num = 0;
 	
 	
@@ -98,9 +94,10 @@ static eAtResault _qcloud_iot_shadow_init(Qcloud_IoT_Shadow *pShadow)
 		shadow_client->inner_data.sync_status = rc;		
 	}
 
-	shadow_client->status = eSHADOW_INITIALIZED;
+	shadow_client->status = eCLIENT_INITIALIZED;
 
-
+	*client = (void *)shadow_client;
+	
 	return rc;
 }
 
@@ -130,11 +127,9 @@ static eAtResault _qcloud_iot_shadow_init(Qcloud_IoT_Shadow *pShadow)
  }
 
 
-void IOT_Shadow_Yield(uint32_t timeout_ms)
-{	
-	Qcloud_IoT_Shadow *pshadow = get_shadow_client();
-	
-	handle_expired_request(pshadow);
+void IOT_Shadow_Yield(void *handle, uint32_t timeout_ms)
+{		
+	handle_expired_request((Qcloud_IoT_Shadow *)handle);
 	HAL_SleepMs(1);
 }
 
@@ -143,26 +138,6 @@ static void _init_request_params(RequestParams *pParams, Method method, OnReques
 	pParams->user_context 		= 		userContext;
 	pParams->timeout_sec 		= 		timeout_sec;
 	pParams->request_callback 	= 		callback;
-}
-
-
-
-/**
- * @brief 检查函数snprintf的返回值
- *
- * @param returnCode       函数snprintf的返回值
- * @param maxSizeOfWrite   可写最大字节数
- * @return                 返回AT_ERR_JSON, 表示出错; 返回AT_ERR_JSON_BUFFER_TRUNCATED, 表示截断
- */
-static inline int _check_snprintf_return(int32_t returnCode, size_t maxSizeOfWrite) {
-
-    if (returnCode >= maxSizeOfWrite) {
-        return AT_ERR_JSON_BUFFER_TRUNCATED;
-    } else if (returnCode < 0) { // 写入出错
-        return AT_ERR_JSON;
-    }
-
-    return AT_ERR_SUCCESS;
 }
 
 static void _update_ack_cb(void *pClient, Method method, RequestAck requestAck, const char *pReceivedJsonDocument, void *pUserdata) 
@@ -192,7 +167,7 @@ int IOT_Shadow_Register_Property(void *handle, DeviceProperty *pProperty, OnProp
     }
 
 	if (shadow_common_check_property_existence(pshadow, pProperty)) 
-		IOT_FUNC_EXIT_RC(AT_ERR_SHADOW_PROPERTY_EXIST);
+		IOT_FUNC_EXIT_RC(AT_ERR_PROPERTY_EXIST);
 
     rc = shadow_common_register_property_on_delta(pshadow, pProperty, callback);
 
@@ -209,7 +184,7 @@ int IOT_Shadow_UnRegister_Property(void *handle, DeviceProperty *pProperty) {
     }
 
 	if (!shadow_common_check_property_existence(pshadow, pProperty)) {
-        IOT_FUNC_EXIT_RC(AT_ERR_SHADOW_NOT_PROPERTY_EXIST);
+        IOT_FUNC_EXIT_RC(AT_ERR_PROPERTY_NOT_EXIST);
     }
 	int rc =  shadow_common_remove_property(pshadow, pProperty);
 	IOT_FUNC_EXIT_RC(rc);
@@ -264,15 +239,15 @@ int IOT_Shadow_Update_Sync(void *handle, char *pJsonDoc, size_t sizeOfBuffer, ui
 	if (rc != AT_ERR_SUCCESS) IOT_FUNC_EXIT_RC(rc);
 
 	while (ACK_NONE == ack_update) {
-        IOT_Shadow_Yield(200);
+        IOT_Shadow_Yield(handle, 200);
     }
 
 	if (ACK_ACCEPTED == ack_update) {
         rc = AT_ERR_SUCCESS;
     } else if (ACK_TIMEOUT == ack_update) {
-        rc = AT_ERR_SHADOW_UPDATE_TIMEOUT;
+        rc = AT_ERR_UPDATE_TIMEOUT;
     } else if (ACK_REJECTED == ack_update) {
-        rc = AT_ERR_SHADOW_UPDATE_REJECTED;
+        rc = AT_ERR_UPDATE_REJECTED;
     }
 	
 	IOT_FUNC_EXIT_RC(rc);
@@ -327,15 +302,15 @@ int IOT_Shadow_Get_Sync(void *handle, uint32_t timeout_ms) {
 	if (rc != AT_ERR_SUCCESS) IOT_FUNC_EXIT_RC(rc);
 	
 	while (ACK_NONE == ack_update) {		
-        IOT_Shadow_Yield(2000);
+        IOT_Shadow_Yield(handle, 2000);
     }
 
 	if (ACK_ACCEPTED == ack_update) {
         rc = AT_ERR_SUCCESS;
     } else if (ACK_TIMEOUT == ack_update) {
-        rc = AT_ERR_SHADOW_GET_TIMEOUT;
+        rc = AT_ERR_GET_TIMEOUT;
     } else if (ACK_REJECTED == ack_update) {
-        rc = AT_ERR_SHADOW_GET_REJECTED;
+        rc = AT_ERR_GET_REJECTED;
     }
 
 	IOT_FUNC_EXIT_RC(rc);
@@ -358,21 +333,21 @@ static int IOT_Shadow_JSON_Init(Qcloud_IoT_Shadow *pShadow, char *jsonBuffer, si
 	
     int32_t rc_of_snprintf = 0;
     if (overwrite) {
-#ifdef TRANSFER_LABEL_NEED
-		rc_of_snprintf = HAL_Snprintf(jsonBuffer, sizeOfBuffer, "{\\\"version\\\":%d\\, \\\"overwriteUpdate\\\":true\\, \\\"state\\\":{", pShadow->inner_data.version);
+#ifdef TRANSFER_LABEL_NEED		
+		rc_of_snprintf = HAL_Snprintf(jsonBuffer, sizeOfBuffer, "{\\\"overwriteUpdate\\\":true\\, \\\"state\\\":{");
 #else
-    	rc_of_snprintf = HAL_Snprintf(jsonBuffer, sizeOfBuffer, "{\"version\":%d, \"overwriteUpdate\":true, \"state\":{", pShadow->inner_data.version);
+		rc_of_snprintf = HAL_Snprintf(jsonBuffer, sizeOfBuffer, "{\"overwriteUpdate\":true, \"state\":{");
 #endif
     }
     else {
-#ifdef TRANSFER_LABEL_NEED
-		rc_of_snprintf = HAL_Snprintf(jsonBuffer, sizeOfBuffer, "{\\\"version\\\":%d\\, \\\"state\\\":{", pShadow->inner_data.version);
+#ifdef TRANSFER_LABEL_NEED		
+		rc_of_snprintf = HAL_Snprintf(jsonBuffer, sizeOfBuffer, "{\\\"state\\\":{");
 #else
-    	rc_of_snprintf = HAL_Snprintf(jsonBuffer, sizeOfBuffer, "{\"version\":%d, \"state\":{", pShadow->inner_data.version);
+		rc_of_snprintf = HAL_Snprintf(jsonBuffer, sizeOfBuffer, "{\"state\":{");
 #endif
     }
 
-    return _check_snprintf_return(rc_of_snprintf, sizeOfBuffer);
+    return check_snprintf_return(rc_of_snprintf, sizeOfBuffer);
 }
 
 /**
@@ -396,11 +371,11 @@ static int IOT_Shadow_JSON_Finalize(Qcloud_IoT_Shadow *pShadow, char *jsonBuffer
 		return AT_ERR_JSON_BUFFER_TOO_SMALL;
 	}
 #ifdef TRANSFER_LABEL_NEED
-	rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer) - 1, remain_size, "}\\, \\\"%s\\\":\\\"", CLIENT_TOKEN_FIELD);
+	rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer) - 1, remain_size, "}"T_", \\\"%s\\\":\\\"", CLIENT_TOKEN_FIELD);
 #else
 	rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer) - 1, remain_size, "}, \"%s\":\"", CLIENT_TOKEN_FIELD);
 #endif
-	rc = _check_snprintf_return(rc_of_snprintf, remain_size);
+	rc = check_snprintf_return(rc_of_snprintf, remain_size);
 	if (rc != AT_ERR_SUCCESS) {
 		return rc;
 	}
@@ -410,7 +385,7 @@ static int IOT_Shadow_JSON_Finalize(Qcloud_IoT_Shadow *pShadow, char *jsonBuffer
 	}
 
 	rc_of_snprintf = generate_client_token(jsonBuffer + strlen(jsonBuffer), remain_size, &(pShadow->inner_data.token_num));
-	rc = _check_snprintf_return(rc_of_snprintf, remain_size);
+	rc = check_snprintf_return(rc_of_snprintf, remain_size);
 
 	if (rc != AT_ERR_SUCCESS) {
 		return rc;
@@ -419,13 +394,13 @@ static int IOT_Shadow_JSON_Finalize(Qcloud_IoT_Shadow *pShadow, char *jsonBuffer
 	if ((remain_size = sizeOfBuffer - strlen(jsonBuffer)) <= 1) {
 		return AT_ERR_JSON_BUFFER_TOO_SMALL;
 	}
-
+	
 #ifdef TRANSFER_LABEL_NEED
 	rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\\\"}");
 #else
 	rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\"}");
 #endif
-	rc = _check_snprintf_return(rc_of_snprintf, remain_size);
+	rc = check_snprintf_return(rc_of_snprintf, remain_size);
 
 	return rc;
 }
@@ -453,14 +428,12 @@ int IOT_Shadow_JSON_ConstructReport(void *handle, char *jsonBuffer, size_t sizeO
     if ((remain_size = sizeOfBuffer - strlen(jsonBuffer)) <= 1) {
         return AT_ERR_JSON_BUFFER_TOO_SMALL;
     }
-	
-#ifdef TRANSFER_LABEL_NEED
+#ifdef TRANSFER_LABEL_NEED	
 	rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\\\"reported\\\":{");
 #else
-    rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\"reported\":{");
+	rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\"reported\":{");
 #endif
-
-    rc = _check_snprintf_return(rc_of_snprintf, remain_size);
+    rc = check_snprintf_return(rc_of_snprintf, remain_size);
     if (rc != AT_ERR_SUCCESS) {
         return rc;
     }
@@ -488,8 +461,8 @@ int IOT_Shadow_JSON_ConstructReport(void *handle, char *jsonBuffer, size_t sizeO
     if ((remain_size = sizeOfBuffer - strlen(jsonBuffer)) <= 1) {
         return AT_ERR_JSON_BUFFER_TOO_SMALL;
     }
-    rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer) - 1, remain_size, "},");
-    rc = _check_snprintf_return(rc_of_snprintf, remain_size);
+    rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer) - 1, remain_size, "}"T_",");
+    rc = check_snprintf_return(rc_of_snprintf, remain_size);
 
 	if (rc != AT_ERR_SUCCESS) {
 		Log_e("shadow json add report failed: %d", rc);
@@ -532,9 +505,10 @@ int IOT_Shadow_JSON_ConstructReportArray(void *handle, char *jsonBuffer, size_t 
 #ifdef TRANSFER_LABEL_NEED
 	rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\\\"reported\\\":{");
 #else
-    rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\"reported\":{");
+	rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\"reported\":{");
 #endif
-    rc = _check_snprintf_return(rc_of_snprintf, remain_size);
+
+    rc = check_snprintf_return(rc_of_snprintf, remain_size);
 
     if (rc != AT_ERR_SUCCESS) {
         return rc;
@@ -556,8 +530,8 @@ int IOT_Shadow_JSON_ConstructReportArray(void *handle, char *jsonBuffer, size_t 
     if ((remain_size = sizeOfBuffer - strlen(jsonBuffer)) <= 1) {
         return AT_ERR_JSON_BUFFER_TOO_SMALL;
     }
-    rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer) - 1, remain_size, "},");
-    rc = _check_snprintf_return(rc_of_snprintf, remain_size);
+    rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer) - 1, remain_size, "}"T_",");
+    rc = check_snprintf_return(rc_of_snprintf, remain_size);
 
 	if (rc != AT_ERR_SUCCESS) {
 		Log_e("shadow json add report failed: %d", rc);
@@ -596,12 +570,14 @@ int IOT_Shadow_JSON_Construct_OverwriteReport(void *handle, char *jsonBuffer, si
     if ((remain_size = sizeOfBuffer - strlen(jsonBuffer)) <= 1) {
         return AT_ERR_JSON_BUFFER_TOO_SMALL;
     }
+	
 #ifdef TRANSFER_LABEL_NEED
 	rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\\\"reported\\\":{");
 #else
-    rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\"reported\":{");
+	rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\"reported\":{");
 #endif
-    rc = _check_snprintf_return(rc_of_snprintf, remain_size);
+
+    rc = check_snprintf_return(rc_of_snprintf, remain_size);
 
     if (rc != AT_ERR_SUCCESS) {
         return rc;
@@ -630,8 +606,8 @@ int IOT_Shadow_JSON_Construct_OverwriteReport(void *handle, char *jsonBuffer, si
     if ((remain_size = sizeOfBuffer - strlen(jsonBuffer)) <= 1) {
         return AT_ERR_JSON_BUFFER_TOO_SMALL;
     }
-    rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer) - 1, remain_size, "},");
-    rc = _check_snprintf_return(rc_of_snprintf, remain_size);
+    rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer) - 1, remain_size, "}"T_",");
+    rc = check_snprintf_return(rc_of_snprintf, remain_size);
 
 	if (rc != AT_ERR_SUCCESS) {
 		Log_e("shadow json add report failed: %d", rc);
@@ -669,12 +645,14 @@ int IOT_Shadow_JSON_ConstructReportAndDesireAllNull(void *handle, char *jsonBuff
     if ((remain_size = sizeOfBuffer - strlen(jsonBuffer)) <= 1) {
         return AT_ERR_JSON_BUFFER_TOO_SMALL;
     }
+
 #ifdef TRANSFER_LABEL_NEED
 	rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\\\"reported\\\":{");
 #else
-    rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\"reported\":{");
+	rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\"reported\":{");
 #endif
-    rc = _check_snprintf_return(rc_of_snprintf, remain_size);
+
+    rc = check_snprintf_return(rc_of_snprintf, remain_size);
 
     if (rc != AT_ERR_SUCCESS) {
         return rc;
@@ -703,20 +681,21 @@ int IOT_Shadow_JSON_ConstructReportAndDesireAllNull(void *handle, char *jsonBuff
     if ((remain_size = sizeOfBuffer - strlen(jsonBuffer)) <= 1) {
         return AT_ERR_JSON_BUFFER_TOO_SMALL;
     }
-    rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer) - 1, remain_size, "},");
-    rc = _check_snprintf_return(rc_of_snprintf, remain_size);
+    rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer) - 1, remain_size, "}"T_",");
+    rc = check_snprintf_return(rc_of_snprintf, remain_size);
 
 	if (rc != AT_ERR_SUCCESS) {
 		Log_e("shadow json add report failed: %d", rc);
 		return rc;
 	}
+
 #ifdef TRANSFER_LABEL_NEED
 	rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\\\"desired\\\": null ");
 #else
 	rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\"desired\": null ");
 #endif
-    rc = _check_snprintf_return(rc_of_snprintf, remain_size);
 
+    rc = check_snprintf_return(rc_of_snprintf, remain_size);
 	rc = IOT_Shadow_JSON_Finalize(pshadow, jsonBuffer, sizeOfBuffer);
 	if (rc != AT_ERR_SUCCESS) {
 		Log_e("shadow json finalize failed: %d", rc);
@@ -747,12 +726,14 @@ int IOT_Shadow_JSON_ConstructDesireAllNull(void *handle, char *jsonBuffer, size_
 	if ((remain_size = sizeOfBuffer - strlen(jsonBuffer)) <= 1) {
 		return AT_ERR_JSON_BUFFER_TOO_SMALL;
 	}
+
 #ifdef TRANSFER_LABEL_NEED
 	rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\\\"desired\\\": null ");
 #else
 	rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\"desired\": null ");
 #endif
-	rc = _check_snprintf_return(rc_of_snprintf, remain_size);
+
+	rc = check_snprintf_return(rc_of_snprintf, remain_size);
 
 	if (rc != AT_ERR_SUCCESS) {
 		return rc;
@@ -785,13 +766,14 @@ int IOT_Shadow_JSON_ConstructDesirePropNull(void *handle, char *jsonBuffer, size
     if ((remain_size = sizeOfBuffer - strlen(jsonBuffer)) <= 1) {
         return AT_ERR_JSON_BUFFER_TOO_SMALL;
     }
-#ifdef TRANSFER_LABEL_NEED
-	rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\\\"desired\\\":{");
-#else
-    rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\"desired\":{");
-#endif
-    rc = _check_snprintf_return(rc_of_snprintf, remain_size);
 
+#ifdef TRANSFER_LABEL_NEED
+		rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\\\"desired\\\":{");
+#else
+		rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\"desired\":{");
+#endif
+
+    rc = check_snprintf_return(rc_of_snprintf, remain_size);
     if (rc != AT_ERR_SUCCESS) {
         return rc;
     }
@@ -819,8 +801,8 @@ int IOT_Shadow_JSON_ConstructDesirePropNull(void *handle, char *jsonBuffer, size
         return AT_ERR_JSON_BUFFER_TOO_SMALL;
     }
     // strlen(jsonBuffer) - 1 是为了把最后一项的逗号去掉
-    rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer) - 1, remain_size, "},");
-    rc = _check_snprintf_return(rc_of_snprintf, remain_size);
+    rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer) - 1, remain_size, "}"T_",");
+    rc = check_snprintf_return(rc_of_snprintf, remain_size);
 
 	if (rc != AT_ERR_SUCCESS) {
 		Log_e("shadow json add desired failed: %d", rc);

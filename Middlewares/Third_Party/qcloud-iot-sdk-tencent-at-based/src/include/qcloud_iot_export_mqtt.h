@@ -34,6 +34,10 @@
 /* 产品名称的最大长度 */
 #define MAX_SIZE_OF_PRODUCT_ID                                    	(10)
 
+/* 产品密钥的最大长度 ，动态设备注册需要*/
+#define MAX_SIZE_OF_PRODUCT_SECRET                                  (48)
+
+
 /* 设备ID的最大长度 */
 #define MAX_SIZE_OF_DEVICE_NAME                                     (64)
 
@@ -60,6 +64,12 @@ typedef enum{
 	ePSK_TLS = 1,		//PSK方式TLS
 	eCERT_TLS = 2,		//证书方式TLS
 }eTlsMode;
+
+typedef enum _eClientState_{
+	eCLIENT_UNINITIALIZED = 0,
+	eCLIENT_INITIALIZED = 1,
+}eClientState;
+
 
 /**
  * @brief 服务质量等级

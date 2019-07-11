@@ -354,5 +354,18 @@ void at_strip(char *str, const char patten)
 	strcpy(str, start);
 }
 
+void chr_strip(char *str, const char patten)
+{
+	char *end = str + strlen(str);
+	
+ 	while(*str != '\0')
+ 	{
+		if(*str == patten)
+		{
+			memmove(str, str+1, end - str);
+		}
+		str++;
+	}
+}
 
 

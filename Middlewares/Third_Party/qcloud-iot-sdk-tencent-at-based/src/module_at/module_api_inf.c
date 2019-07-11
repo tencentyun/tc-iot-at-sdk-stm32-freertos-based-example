@@ -96,7 +96,6 @@ static void urc_n21_reg_func(const char *data, uint32_t size)
 static void urc_pub_recv_func(const char *data, uint32_t size)
 {
 	//Log_d("receve pub_msg(%d):%s", size, data);
-	//HAL_DelayMs(200); 
 	deliver_message(data, size);
 }
 
@@ -322,6 +321,7 @@ eAtResault module_mqtt_conn(MQTTInitParams init_params)
 	return result;
 }
 
+
 /* mqtt disconn */
 eAtResault module_mqtt_discon(void)
 {
@@ -386,11 +386,13 @@ eAtResault module_mqtt_publ(const char *topic, QoS eQos, char *payload)
 	}
 	
 	len = at_client_send(at_client_get(), payload, strlen(payload));
+	at_client_send(at_client_get(), "\r\n", 2);
 	if(strlen(payload) !=  len)	
 	{
 		result = AT_ERR_SEND_DATA;
 		Log_e("send data err");
 	}
+	
 
 exit:
 
@@ -480,8 +482,6 @@ eAtResault module_mqtt_state(eMqtt_State *pState)
 {
 	eAtResault result = AT_ERR_SUCCESS;
 	at_response_t resp = NULL;
-	//int argc, state;
-	//const char *req_expr = "+TCMQTTSTATE:%u";
 
 	resp = at_create_resp(256, 0, CMD_TIMEOUT_MS);
 	
@@ -572,6 +572,54 @@ eAtResault wifi_set_test_server_ip(const char *host)
 	return result;
 }
 
+eAtResault wifi_set_cwmod(uint8_t mode)
+{
+	eAtResault result = AT_ERR_SUCCESS;
+	at_response_t resp = NULL;
+
+	/* clear sub flag*/
+    clearFlag(WIFI_CON_FLAG);
+	resp = at_create_resp(128, 0, CMD_TIMEOUT_MS);
+
+	if(AT_ERR_SUCCESS !=  at_exec_cmd(resp, "AT+CWMODE=%d",mode))		
+	{
+		Log_e("cmd AT+CWMODE exec err");
+		result = AT_ERR_FAILURE;
+	}
+
+	if(resp)
+	{
+		at_delete_resp(resp);
+	}
+	
+	return result;
+}
+
+eAtResault wifi_set_debug_level(uint8_t log_level)
+{
+	eAtResault result = AT_ERR_SUCCESS;
+	at_response_t resp = NULL;
+
+	/* clear sub flag*/
+    clearFlag(WIFI_CON_FLAG);
+	resp = at_create_resp(128, 0, CMD_TIMEOUT_MS);
+
+	if(AT_ERR_SUCCESS !=  at_exec_cmd(resp, "AT+TCLOG=%d",log_level))		
+	{
+		Log_e("cmd AT+TCLOG exec err");
+		result = AT_ERR_FAILURE;
+	}
+
+	if(resp)
+	{
+		at_delete_resp(resp);
+	}
+	
+	return result;
+}
+
+
+
 #else
 #define RETRY_TIMES		3
 eAtResault N21_net_reg(void)
@@ -649,6 +697,12 @@ eAtResault module_register_network(eModuleType eType)
 	{
 		#define WIFI_SSID	"youga_wifi"
 		#define WIFI_PW		"Iot@2018"
+
+		result = wifi_set_cwmod(1);
+		if(AT_ERR_SUCCESS != result)
+		{
+			Log_e("set cwmode err,ret:%d", result);	
+		}
 
 		/*此处示例传递热点名字直接联网，通常的做法是特定产品根据特定的事件（譬如按键）触发wifi配网（一键配网/softAP）*/
 		result = wifi_connect(WIFI_SSID, WIFI_PW);

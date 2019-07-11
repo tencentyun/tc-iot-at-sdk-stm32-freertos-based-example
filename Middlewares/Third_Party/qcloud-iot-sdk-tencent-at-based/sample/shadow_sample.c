@@ -50,11 +50,9 @@ static eAtResault net_prepare(void)
 	DeviceInfo sDevInfo;
 	at_client_t pclient = at_client_get();	
 
-	memset((char *)&sDevInfo, 0, sizeof(DeviceInfo));
-	Ret = (eAtResault)HAL_GetProductID(sDevInfo.product_id, MAX_SIZE_OF_PRODUCT_ID);
-	Ret |= (eAtResault)HAL_GetDevName(sDevInfo.device_name, MAX_SIZE_OF_DEVICE_NAME);
-	Ret |= (eAtResault)HAL_GetDevSec(sDevInfo.devSerc, MAX_SIZE_OF_DEVICE_SERC);
-	
+	memset((char *)&sDevInfo, '\0', sizeof(DeviceInfo));
+	Ret = (eAtResault)HAL_GetDevInfo(&sDevInfo);
+
 	if(AT_ERR_SUCCESS != Ret){
 		Log_e("Get device info err");
 		return AT_ERR_FAILURE;
@@ -116,6 +114,7 @@ void shadow_demo_task(void *arg)
 {
 	eAtResault Ret;
 	int rc;
+	void *pShadow_client = NULL;
 	at_client_t pclient = at_client_get();	
 
 	Log_d("shadow_demo_task Entry...");
@@ -158,7 +157,7 @@ void shadow_demo_task(void *arg)
 			break;
 		}
 
-		Ret = IOT_Shadow_Construct(eSHADOW);
+		Ret = IOT_Shadow_Construct(&pShadow_client);
 		if(AT_ERR_SUCCESS != Ret)
 		{
 			Log_e("shadow construct fail,Ret:%d", Ret);
@@ -173,17 +172,17 @@ void shadow_demo_task(void *arg)
 		sg_shadow_property.key = "updateCount";
 		sg_shadow_property.data = &sg_current_update_count;
 		sg_shadow_property.type = JINT32;
-		rc = IOT_Shadow_Register_Property(get_shadow_client(), &sg_shadow_property, OnDeltaCallback);
+		rc = IOT_Shadow_Register_Property(pShadow_client, &sg_shadow_property, OnDeltaCallback);
 		if (rc != AT_ERR_SUCCESS) 
 		{
 			Log_e("register device shadow property failed, err: %d", rc);
-			rc = IOT_Shadow_Destroy(get_shadow_client());			
+			rc = IOT_Shadow_Destroy(pShadow_client);			
 			break;
 		}
 
 
 		//进行Shdaow Update操作的之前，最后进行一次同步操作，否则可能本机上shadow version和云上不一致导致Shadow Update操作失败
-		rc = IOT_Shadow_Get_Sync(get_shadow_client(), QCLOUD_IOT_MQTT_COMMAND_TIMEOUT);
+		rc = IOT_Shadow_Get_Sync(pShadow_client, QCLOUD_IOT_MQTT_COMMAND_TIMEOUT);
 		if (rc != AT_ERR_SUCCESS) 
 		{
 			Log_e("get device shadow failed, err: %d", rc);
@@ -193,11 +192,11 @@ void shadow_demo_task(void *arg)
 
 		while(1)
 		{
-			HAL_SleepMs(1000);
-			IOT_Shadow_Yield(2000);
+			HAL_SleepMs(3000);
+			IOT_Shadow_Yield(pShadow_client, 2000);
 			if (sg_delta_arrived) 
 			{
-				rc = IOT_Shadow_Update_Sync(get_shadow_client(), sg_shadow_update_buffer, sg_shadow_update_buffersize, QCLOUD_IOT_MQTT_COMMAND_TIMEOUT);
+				rc = IOT_Shadow_Update_Sync(pShadow_client, sg_shadow_update_buffer, sg_shadow_update_buffersize, QCLOUD_IOT_MQTT_COMMAND_TIMEOUT);
 				sg_delta_arrived = false;
 				if (rc == AT_ERR_SUCCESS) 
 				{
@@ -208,8 +207,8 @@ void shadow_demo_task(void *arg)
 			if(sg_lastupdate_acked) //make sure vesion is sync
 			{
 				sg_lastupdate_acked = false;
-				IOT_Shadow_JSON_ConstructReport(get_shadow_client(), sg_shadow_update_buffer, sg_shadow_update_buffersize, 1, &sg_shadow_property);
-				rc = IOT_Shadow_Update(get_shadow_client(), sg_shadow_update_buffer, sg_shadow_update_buffersize, OnShadowUpdateCallback, NULL, QCLOUD_IOT_MQTT_COMMAND_TIMEOUT);
+				IOT_Shadow_JSON_ConstructReport(pShadow_client, sg_shadow_update_buffer, sg_shadow_update_buffersize, 1, &sg_shadow_property);
+				rc = IOT_Shadow_Update(pShadow_client, sg_shadow_update_buffer, sg_shadow_update_buffersize, OnShadowUpdateCallback, NULL, QCLOUD_IOT_MQTT_COMMAND_TIMEOUT);
 				sg_current_update_count++;
 			}
 

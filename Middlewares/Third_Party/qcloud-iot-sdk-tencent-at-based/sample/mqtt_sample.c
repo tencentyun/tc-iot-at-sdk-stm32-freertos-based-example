@@ -29,10 +29,8 @@ static eAtResault net_prepare(void)
 	DeviceInfo sDevInfo;
 	at_client_t pclient = at_client_get();	
 
-	memset((char *)&sDevInfo, 0, sizeof(DeviceInfo));
-	Ret = (eAtResault)HAL_GetProductID(sDevInfo.product_id, MAX_SIZE_OF_PRODUCT_ID);
-	Ret |= (eAtResault)HAL_GetDevName(sDevInfo.device_name, MAX_SIZE_OF_DEVICE_NAME);
-	Ret |= (eAtResault)HAL_GetDevSec(sDevInfo.devSerc, MAX_SIZE_OF_DEVICE_SERC);
+	memset((char *)&sDevInfo, '\0', sizeof(DeviceInfo));
+	Ret = (eAtResault)HAL_GetDevInfo(&sDevInfo);
 
 	if(AT_ERR_SUCCESS != Ret){
 		Log_e("Get device info err");
@@ -154,13 +152,12 @@ void mqtt_demo_task(void *arg)
 
 		while(1)
 		{
-			HAL_SleepMs(1000);
+			HAL_SleepMs(3000);
 			memset(payload, 0, 256);
-			//*注意转义的处理，不同模组在json格式数据需要的转义处理有些差别*//
-#ifdef TRANSFER_LABEL_NEED								
-			HAL_Snprintf(payload, 256, "{\\\"action\\\": \\\"publish_test\\\"\\, \\\"count\\\": \\\"%d\\\"}",count++);
+#ifdef TRANSFER_LABEL_NEED			
+			HAL_Snprintf(payload, 256, "{\\\"action\\\": \\\"publish_test\\\""T_", \\\"count\\\": \\\"%d\\\"}",count++);
 #else
-			HAL_Snprintf(payload, 256, "{\"action\": \"publish_test\"\, \"count\": \"%d\"}",count++);	
+			HAL_Snprintf(payload, 256, "{\"action\": \"publish_test\", \"count\": \"%d\"}",count++);	
 #endif
 			Log_d("pub_msg:%s", payload);
 			Ret = module_mqtt_pub(topic_name, QOS0, payload);

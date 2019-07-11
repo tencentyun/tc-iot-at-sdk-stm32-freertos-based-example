@@ -48,12 +48,12 @@ typedef enum _eAtResault_{
     AT_ERR_MAX_TOPIC_LENGTH                              = -307,    // 表示超过规定最大的topic长度
 
 
-	AT_ERR_SHADOW_PROPERTY_EXIST                         = -401,    // 表示注册的属性已经存在
-    AT_ERR_SHADOW_NOT_PROPERTY_EXIST                     = -402,    // 表示注册的属性不存在
-    AT_ERR_SHADOW_UPDATE_TIMEOUT                         = -403,    // 表示更新设备影子文档超时
-    AT_ERR_SHADOW_UPDATE_REJECTED                        = -404,    // 表示更新设备影子文档被拒绝
-    AT_ERR_SHADOW_GET_TIMEOUT                            = -405,    // 表示拉取设备影子文档超时
-    AT_ERR_SHADOW_GET_REJECTED                           = -406,    // 表示拉取设备影子文档被拒绝
+	AT_ERR_PROPERTY_EXIST                         = -401,    // 表示注册的属性已经存在
+    AT_ERR_PROPERTY_NOT_EXIST                     = -402,    // 表示注册的属性不存在
+    AT_ERR_UPDATE_TIMEOUT                         = -403,    // 表示更新设备影子文档超时
+    AT_ERR_UPDATE_REJECTED                        = -404,    // 表示更新设备影子文档被拒绝
+    AT_ERR_GET_TIMEOUT                            = -405,    // 表示拉取设备影子文档超时
+    AT_ERR_GET_REJECTED                           = -406,    // 表示拉取设备影子文档被拒绝
 } eAtResault;
 
 

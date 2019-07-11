@@ -35,8 +35,6 @@
 #include "cmsis_os.h"
 #endif
 
-typedef void * osThreadId;
-
 typedef struct _Timer_ {
     uint32_t end_time;
 }Timer;
@@ -62,18 +60,11 @@ void HAL_Timer_countdown(Timer *timer, unsigned int timeout);
 int HAL_Timer_remain(Timer *timer); 
 void HAL_Timer_init(Timer *timer); 
 
-int HAL_GetProductID(char *pProductId, uint8_t maxlen);
-int HAL_GetDevName(char *pDevName, uint8_t maxlen);
-int HAL_SetProductID(const char *pProductId);
-int HAL_SetDevName(const char *pDevName);
-int HAL_GetDevCertName(char *pDevCert, uint8_t maxlen);
-int HAL_GetDevPrivateKeyName(char *pDevPrivateKey, uint8_t maxlen);
-int HAL_SetDevCertName(char *pDevCert);
-int HAL_SetDevPrivateKeyName(char *pDevPrivateKey);
-int HAL_GetDevSec(char *pDevSec, uint8_t maxlen);
-int HAL_SetDevSec(const char *pDevSec);
+int HAL_SetDevInfo(void *pdevInfo);
+int HAL_GetDevInfo(void *pdevInfo);
 
 #ifdef OS_USED
+typedef void * osThreadId;
 void hal_thread_create(volatile void* threadId, uint16_t stackSize, int Priority, void (*fn)(void*), void* arg);
 void hal_thread_destroy(void* threadId);
 void HAL_SleepMs(_IN_ uint32_t ms);

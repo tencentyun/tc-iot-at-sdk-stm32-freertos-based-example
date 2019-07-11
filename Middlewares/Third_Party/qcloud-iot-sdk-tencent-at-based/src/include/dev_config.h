@@ -27,7 +27,10 @@ typedef struct {
 #else
 	char	devSerc[MAX_SIZE_OF_DEVICE_SERC + 1];
 #endif
- 	
+
+#ifdef DEV_DYN_REG_ENABLED
+	char	product_secret[MAX_SIZE_OF_PRODUCT_SECRET + 1];
+#endif  
 } DeviceInfo;
 
 DeviceInfo* iot_device_info_get(void);

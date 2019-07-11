@@ -224,7 +224,8 @@ int json_get_value_by_name_cb(char *p_cName, int iNameLen, char *p_cValue, int i
     }
 #endif
 
-    if (!strncmp(p_cName, p_stNameValue->pN, p_stNameValue->nLen)) {
+    //add key's len compare avoid the case of key include, eg. key1--"abcd"   key2--"ab"
+    if ((iNameLen == p_stNameValue->nLen) && !strncmp(p_cName, p_stNameValue->pN, p_stNameValue->nLen)) {
         p_stNameValue->pV = p_cValue;
         p_stNameValue->vLen = iValueLen;
         p_stNameValue->vType = iValueType;
