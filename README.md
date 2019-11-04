@@ -64,16 +64,9 @@ hal层对外的API接口及HAL层宏开关控制。
 | 14   | HAL_MutexUnlock                   	| 释放互斥锁，必选实现                              |
 | 15   | HAL_Malloc                			| 动态内存申请，必选实现                            |
 | 16   | HAL_Free                          	| 动态内存释放，必选实现                            |
-| 17   | HAL_GetProductID                 	| 获取产品ID，必选实现   							 |
-| 18   | HAL_SetProductID                  	| 设置产品ID，必须存放在非易失性存储介质，必选实现    |
-| 19   | HAL_GetDevName                     | 获取设备名，必选实现                              |
-| 20   | HAL_SetDevName                   	| 设置设备名，必须存放在非易失性存储介质，必选实现      |
-| 21   | HAL_GetDevSec                		| 获取设备密钥，密钥认证方式为必选实现                            |
-| 22   | HAL_SetDevSec                      | 设置设备密钥，必须存放在非易失性存储介质，密钥认证方式为必选实现   |
-| 23   | HAL_GetDevCertName                	| 获取设备证书文件名，证书认证方式为必选实现                            |
-| 24   | HAL_SetDevCertName                 | 设置设备证书文件名，必须存放在非易失性存储介质，证书认证方式为必选实现   |
-| 25   | HAL_GetDevPrivateKeyName           | 获取设备证书私钥文件名，证书认证方式为必选实现                      |
-| 26   | HAL_SetDevPrivateKeyName           | 设置设备证书私钥文件名，必须存放在非易失性存储介质，证书认证方式为必选实现   |
+| 17   | HAL_GetDevInfo                 	| 获取设备信息，必选实现   							 |
+| 18   | HAL_SetDevInfo                  	| 设置设备信息，必须存放在非易失性存储介质，必选实现    |
+
 
 
 ##### 2.3 **hal_at.c**:
@@ -87,7 +80,7 @@ hal层对外的API接口及HAL层宏开关控制。
 | 3    | at_send_data                   | AT串口发送接口                             |
 
 ##### 2.4 **module_api_inf.c**：
-配网/注网 API业务适配，该源文件基于腾讯定义的AT指令实现了MQTT的交互，但有一个关于联网/注网的API(module_register_network)需要根据模组适配。示例基于[ESP8266腾讯定制AT固件](http://git.code.oa.com/iotcloud_teamIII/qcloud-iot-at-esp8266-wifi.git)示例了WIFI直连的方式连接网络，但更常用的场景是根据特定事件（譬如按键）触发配网（softAP/一键配网），这块的逻辑各具体业务逻辑自行实现。ESP8266有封装配网指令和示例APP。对于蜂窝模组，则是使用特定的网络注册指令。开发者参照module_handshake应用AT-SDK的AT框架添加和模组的AT指令交互。 
+配网/注网 API业务适配，该源文件基于腾讯定义的AT指令实现了MQTT的交互，但有一个关于联网/注网的API(module_register_network)需要根据模组适配。示例基于[ESP8266腾讯定制AT固件](https://main.qcloudimg.com/raw/6811fc7631dcf0ce5509ccbdba5c72b7.zip)示例了WIFI直连的方式连接网络，但更常用的场景是根据特定事件（譬如按键）触发配网（softAP/一键配网），这块的逻辑各具体业务逻辑自行实现。ESP8266有封装配网指令和示例APP。对于蜂窝模组，则是使用特定的网络注册指令。开发者参照module_handshake应用AT-SDK的AT框架添加和模组的AT指令交互。 
 
 ```	
 //模组联网（NB/2/3/4G注册网络）、wifi配网（一键配网/softAP）暂时很难统一,需要用户根据具体模组适配。
@@ -139,7 +132,7 @@ char sg_device_secret[MAX_SIZE_OF_DEVICE_SERC + 1] = "ttOARy0PjYgzd9OSs4Z3RA==";
 #endif
 ```
 ##### 2.6 示例说明
-Smaple目录一共有四个示例，分别是mqtt_sample.c、shadow_sample.c、data_template_sample.c、light_data_template_sample.c。
+Smaple目录一共有四个示例，分别是mqtt_sample.c、data_template_sample.c、light_data_template_sample.c。
 通过main.c中宏定义 *RUN_SAMPLE_TYPE* 控制具体运行哪个个示例。
 
 ```
@@ -171,7 +164,6 @@ void demoTask(void)
 | 序号  | 示例名称                        | 说明                                 		|
 | ---- | -------------------------------| ----------------------------------		|
 | 1    | mqtt_sample.c                  | MQTT示例，该示例示例基于定制的AT指令如何便捷的接入腾讯物联网平台及收发数据|
-| 1    | shadow_sample.c                | 影子示例，基于AT实现的MQTT协议，进一步封装的影子协议               |
 | 2    | data_template_sample.c         | 通用数据模板及事件功能示例，示例如何基于腾讯物联网平台的数据模板功能快速开发产品|
 | 3    | light_data_template_sample.c   | 基于智能灯的控制场景，示例具体的产品如何应用数据模板及事件功能                |
 
@@ -221,58 +213,6 @@ DBG|..\Middlewares\Third_Party\qcloud-iot-sdk-tencent-at-based\sample\mqtt_sampl
 DBG|..\Middlewares\Third_Party\qcloud-iot-sdk-tencent-at-based\sample\mqtt_sample.c|mqtt_demo_task(174): module mqtt pub success
 DBG|..\Middlewares\Third_Party\qcloud-iot-sdk-tencent-at-based\sample\mqtt_sample.c|dataTopic_cb(22): data topic call back:{"action":"publish_test","count":"1"}
 ```
-
-**影子示例**
-
-修改 宏定义 *RUN_SAMPLE_TYPE* 为 *SHADOW_SAMPLE*，AT串口接ESP8266（已烧录腾讯定制AT固件），编译后运行日志如下：
-
-```
-===========Build Time 20190425===============
-Board init over
-Sysclk[8000000] TickFreq[1]DBG|main.c|mem_info(74): 
-Total_mem:30720 freeMem:0
-
-Start test taskDBG|main.c|mem_info(74): 
-Total_mem:30720 freeMem:25888
-DBG|..\Middlewares\Third_Party\qcloud-iot-sdk-tencent-at-based\sample\shadow_sample.c|shadow_demo_task(121): shadow_demo_task Entry...
-DBG|..\Middlewares\Third_Party\qcloud-iot-sdk-tencent-at-based\src\module_at\at_client.c|at_client_init(856): AT client(V1.0.0) initialize success.
-DBG|..\Middlewares\Third_Party\qcloud-iot-sdk-tencent-at-based\src\module_at\module_api_inf.c|module_init(172): at client init success
-...
-DBG|..\Middlewares\Third_Party\qcloud-iot-sdk-tencent-at-based\src\module_at\module_api_inf.c|module_init(189): WIFI CONNECTED
-DBG|..\Middlewares\Third_Party\qcloud-iot-sdk-tencent-at-based\sample\shadow_sample.c|net_prepare(70): module init success
-DBG|..\Middlewares\Third_Party\qcloud-iot-sdk-tencent-at-based\sample\shadow_sample.c|net_prepare(85): Start shakehands with module...
-DBG|..\Middlewares\Third_Party\qcloud-iot-sdk-tencent-at-based\src\module_at\module_api_inf.c|module_handshake(226): Module info(6):
-
-AT version:1.3.0.0-dev(6ed31d7 - Apr 18 2019 04:15:44)
-SDK version:v3.2-dev-224-g54d3106-dirty
-compile time:Apr 24 2019 20:09:42
-Bin version:QCloud IoT ESP AT v1.0(Unknown)
-DBG|..\Middlewares\Third_Party\qcloud-iot-sdk-tencent-at-based\sample\shadow_sample.c|net_prepare(94): module connect success
-INF|..\Middlewares\Third_Party\qcloud-iot-sdk-tencent-at-based\src\module_at\device.c|iot_device_info_init(62): SDK_Ver: 1.0.0, Product_ID: 03UKNYBUZG, Device_Name: at_dev
-DBG|..\Middlewares\Third_Party\qcloud-iot-sdk-tencent-at-based\src\module_at\module_api_inf.c|urc_wifi_conn_func(73): receve wifi conn urc(16):WIFI CONNECTED
-
-DBG|..\Middlewares\Third_Party\qcloud-iot-sdk-tencent-at-based\src\module_at\module_api_inf.c|urc_mqtt_conn_func(88): receve mqtt conn urc(16):+TCMQTTCONN:OK
-
-DBG|..\Middlewares\Third_Party\qcloud-iot-sdk-tencent-at-based\sample\shadow_sample.c|shadow_demo_task(151): module mqtt conn success
-DBG|..\Middlewares\Third_Party\qcloud-iot-sdk-tencent-at-based\src\shadow\shadow_client_manager.c|subscribe_operation_result_to_cloud(168): shadow topic len:42
-DBG|..\Middlewares\Third_Party\qcloud-iot-sdk-tencent-at-based\src\module_at\module_api_inf.c|urc_mqtt_sub_func(101): receve mqtt sub urc(15):+TCMQTTSUB:OK
-
-DBG|..\Middlewares\Third_Party\qcloud-iot-sdk-tencent-at-based\src\module_at\module_api_inf.c|module_mqtt_sub(402): $shadow/operation/result/03UKNYBUZG/at_dev sub success
-DBG|..\Middlewares\Third_Party\qcloud-iot-sdk-tencent-at-based\sample\shadow_sample.c|shadow_demo_task(169): shadow construct success
-DBG|..\Middlewares\Third_Party\qcloud-iot-sdk-tencent-at-based\src\shadow\shadow_client.c|IOT_Shadow_Get(303): GET Request Document: {\"clientToken\":\"03UKNYBUZG-0\"}
-DBG|..\Middlewares\Third_Party\qcloud-iot-sdk-tencent-at-based\src\shadow\shadow_client.c|_update_ack_cb(170): requestAck=0
-DBG|..\Middlewares\Third_Party\qcloud-iot-sdk-tencent-at-based\src\shadow\shadow_client.c|_update_ack_cb(173): Received Json Document={"clientToken":"03UKNYBUZG-0","payload":{"metadata":{"reported":{"param_bool":{"timestamp":1556379651134},"param_enum":{"timestamp":1556379651134},"param_float":{"timestamp":1556379651134},"param_int":{"timestamp":1556379651134},"param_string":{"timestamp":1556379651134},"updateCount":{"timestamp":1556379651134}}},"state":{"reported":{"param_bool":0,"param_enum":2,"param_float":4.1399999999999997,"param_int":1345,"param_string":"hello","updateCount":1}},"timestamp":1556379651134,"version":34126},"result":0,"timestamp":1556379659,"type":"get"}
-DBG|..\Middlewares\Third_Party\qcloud-iot-sdk-tencent-at-based\src\shadow\shadow_client.c|IOT_Shadow_Update(239): UPDATE Request Document: {\"version\":34126\, \"state\":{\"reported\":{\"updateCount\":0}}\, \"clientToken\":\"03UKNYBUZG-1\"}
-INF|..\Middlewares\Third_Party\qcloud-iot-sdk-tencent-at-based\sample\shadow_sample.c|OnShadowUpdateCallback(42): recv shadow update response, response ack: 0
-DBG|..\Middlewares\Third_Party\qcloud-iot-sdk-tencent-at-based\src\shadow\shadow_client.c|IOT_Shadow_Update(239): UPDATE Request Document: {\"version\":34127\, \"state\":{\"reported\":{\"updateCount\":1}}\, \"clientToken\":\"03UKNYBUZG-2\"}
-INF|..\Middlewares\Third_Party\qcloud-iot-sdk-tencent-at-based\sample\shadow_sample.c|OnShadowUpdateCallback(42): recv shadow update response, response ack: 0
-
-```
-
-**影子协议说明**
-
-影子基于MQTT的基础上，通过订阅特定的topic，payload部分基于为json格式实现数据协议交互,参见官网影子协议说明和影子快速入门。
-
 
 **数据模板示例**
 修改 宏定义 *RUN_SAMPLE_TYPE* 为 *DATATEMPLATE_SAMPLE*，AT串口接ESP8266（已烧录腾讯定制AT固件），编译后运行日志如下：
@@ -386,10 +326,9 @@ INF|..\Middlewares\Third_Party\qcloud-iot-sdk-tencent-at-based\sample\light_data
 ``` 
 
 **相关文档链接**   
-[影子协议说明](https://cloud.tencent.com/document/product/634/11918)  
-[影子快速入门](https://cloud.tencent.com/document/product/634/11914#c-sdk-.E6.93.8D.E4.BD.9C.E6.AD.A5.E9.AA.A4)  
-[数据模板编程](https://cloud.tencent.com/document/product/634/)
+
+[数据模板协议说明](https://cloud.tencent.com/document/product/1081/34916)
 
 
 ### SDK接口说明
- 关于 AT-SDK 的更多使用方式及接口了解, [腾讯AT_SDK](http://git.code.oa.com/iotcloud_teamIII/qcloud-iot-sdk-tecent-at-based.git)
+ 关于 AT-SDK 的更多使用方式及接口了解, [腾讯AT_SDK](https://github.com/tencentyun/qcloud-iot-sdk-tencent-at-based.git)

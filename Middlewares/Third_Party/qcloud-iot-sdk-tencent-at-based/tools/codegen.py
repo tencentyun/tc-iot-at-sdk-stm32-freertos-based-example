@@ -8,12 +8,17 @@ import argparse
 import glob
 #import cStringIO
 
-reload(sys)
-sys.setdefaultencoding("utf-8")
+from sys import version_info
+
+if version_info.major == 3:
+    import importlib
+    importlib.reload(sys)
+elif version_info.major == 2:
+    reload(sys)
+    sys.setdefaultencoding("utf-8")
 
 try: import simplejson as json
 except: import json
-
 
 # {"version":"1.0","properties":[{"id":"light_switch","name":"电灯开关","desc":"控制电灯开灭","required":true,"mode":"rw","define":{"type":"bool","mapping":{"0":"关","1":"开"}}},{"id":"color","name":"颜色","desc":"灯光颜色","mode":"rw","define":{"type":"enum","mapping":{"0":"Red","1":"Green","2":"Blue"}}},{"id":"brightness","name":"颜色","desc":"灯光颜色","mode":"rw","define":{"type":"int","unit":"%","unitDesc":"亮度百分比","min":"0","max":"100"}},{"id":"name","name":"灯位置名称","desc":"灯位置名称：书房、客厅等","mode":"rw","required":true,"define":{"type":"string","min":"0","max":"64"}}]}
 class TEMPLATE_CONSTANTS:
@@ -32,8 +37,6 @@ class TEMPLATE_CONSTANTS:
     REQUIRED = "required"
     MODE = "mode"
 
-
-
 class iot_enum:
     def __init__(self, parent, name, index):
         self.parent = parent
@@ -47,11 +50,12 @@ class iot_enum:
         return "#define {} {}".format(self.get_c_macro_name(), self.index)
 
 class iot_field:
-    def __init__(self,id, name, index, field_obj):
+    def __init__(self, prefix, id, name, index, field_obj):
         self.default_value = ""
         self.enums = []
         self.index = index
         self.id = id
+        self.prefix = prefix
         self.name = name
         self.type_name = field_obj["define"]["type"]
 
@@ -61,7 +65,7 @@ class iot_field:
             self.default_value = "0"
         elif self.type_name == "enum":
             self.type_define = "TYPE_DEF_TEMPLATE_ENUM"
-            self.type_id = "TYPE_TEMPLATEENUM"
+            self.type_id = "TYPE_TEMPLATE_ENUM"
             if TEMPLATE_CONSTANTS.DEFINE not in field_obj:
                 raise ValueError("错误：{} 字段定义中未找到枚举定义{} 字段".format(name, TEMPLATE_CONSTANTS.DEFINE))
 
@@ -129,13 +133,14 @@ class iot_field:
 
     def get_global_field_declare(self):
         if self.type_id == "TYPE_TEMPLATE_STRING":
-            return "TYPE_DEF_TEMPLATE_STRING sg_{}[{}+1]={};".format(self.id, str(self.max_value),"{0}")
+            return "TYPE_DEF_TEMPLATE_STRING sg_{}{}[{}+1]={};".format(self.prefix, self.id, str(self.max_value),"{0}")
         else:
-            return "{} sg_{} = {};".format(self.type_define, self.id, self.default_value)
+            return "{} sg_{}{} = {};".format(self.type_define, self.prefix, self.id, self.default_value)
 
     def get_meta_define_str(self, var_name):
         return '{{ "{}", &{}.{}, {} }},' \
                     .format(self.id, var_name, self.get_id_c_member_name(), self.type_id)
+
 class iot_event:
     def __init__(self,id, name, index, event):
         self.index = index
@@ -145,11 +150,11 @@ class iot_event:
         self.desc = event["desc"]
         self.event_properties = []
         self.event_property_count = 0
+        self.prefix = self.id + "_"
 
         for property in event["params"]:
-            self.event_properties.append(iot_field(property["id"], property["name"], self.event_property_count, property))
+            self.event_properties.append(iot_field(self.prefix, property["id"], property["name"], self.event_property_count, property))
             self.event_property_count += 1
-
 
     def get_sigle_event_info(self):
         event_info = ""
@@ -163,7 +168,7 @@ class iot_event:
         return event_info
 
     def gen_sigle_event_info(self):
-        resault = ""
+        result = ""
         event_para_info = ""
         event_property_info = ""
         event_var_info = ""
@@ -171,35 +176,118 @@ class iot_event:
             event_para_info += "static {}\n".format(field.get_global_field_declare())
             event_property_info += "\n   {"
             if field.type_id == "TYPE_TEMPLATE_STRING":
-                event_property_info += ".key = \"{}\", .data = sg_{}, .type = {}".format(field.id, field.id, field.type_id)
+                event_property_info += ".key = \"{}\", .data = sg_{}, .type = {}".format(field.id, self.prefix + field.id, field.type_id)
             else:
-                event_property_info += ".key = \"{}\", .data = &sg_{}, .type = {}".format(field.id, field.id, field.type_id)
+                event_property_info += ".key = \"{}\", .data = &sg_{}, .type = {}".format(field.id, self.prefix + field.id, field.type_id)
             event_property_info += "},"
         event_var_info += "static DeviceProperty g_propertyEvent_{}[] = ".format(self.id)
-        resault += event_para_info + event_var_info + "{\n"+event_property_info + "\n};\n"
-        return resault
+        result += event_para_info + event_var_info + "{\n"+event_property_info + "\n};\n"
+        return result
 
+class iot_action:
+    def __init__(self,id, name, index, action):
+        self.index = index
+        self.id = id
+        self.name = name
+        self.desc = action["desc"]
 
+        self.action_input = []
+        self.action_input_count = 0
+        self.action_input_prefix = self.id + "_in_"
+
+        self.action_output = []
+        self.action_output_count = 0
+        self.action_output_prefix = self.id + "_out_"
+
+        for input in action["input"]:
+            self.action_input.append(iot_field(self.action_input_prefix, input["id"], input["name"], self.action_input_count, input))
+            self.action_input_count += 1
+
+        for output in action["output"]:
+            self.action_output.append(iot_field(self.action_output_prefix, output["id"], output["name"], self.action_output_count, output))
+            self.action_output_count += 1
+        
+    def get_single_action_info(self):
+        action_info = ""
+        action_info += "\n   id:{}  name:\"{}\"\n".format(self.id, self.name)
+
+        action_info += "   action_input_count:{} \n   inputs:[".format(self.action_input_count)
+        for field in self.action_input:
+            action_info += "\n      para:{}  type:{}".format(field.id, field.type_id)
+        action_info += "\n   ]"
+
+        action_info += "   action_output_count:{} \n   output:[".format(self.action_output_count)
+        for field in self.action_output:
+            action_info += "\n      para:{}  type:{}".format(field.id, field.type_id)
+        action_info += "\n   ]"
+
+        return action_info
+
+    def gen_single_action_info(self):
+        result = ""
+        action_para_info = ""
+        action_input_info = ""
+        action_input_var_info = ""
+
+        for field in self.action_input:
+            action_para_info += "static {}\n".format(field.get_global_field_declare())
+            action_input_info += "\n   {"
+            if field.type_id == "TYPE_TEMPLATE_STRING":
+                action_input_info += ".key = \"{}\", .data = sg_{}, .type = {}".format(field.id, self.action_input_prefix + field.id, field.type_id)
+            else:
+                action_input_info += ".key = \"{}\", .data = &sg_{}, .type = {}".format(field.id, self.action_input_prefix + field.id, field.type_id)
+            action_input_info += "},"
+        action_input_var_info += "static DeviceProperty g_actionInput_{}[] = ".format(self.id)
+        result += action_para_info + action_input_var_info + "{\n"+action_input_info + "\n};\n"
+
+        action_para_info = ""
+        action_input_info = ""
+        action_input_var_info = ""
+        for field in self.action_output:
+            action_para_info += "static {}\n".format(field.get_global_field_declare())
+            action_input_info += "\n   {"
+            if field.type_id == "TYPE_TEMPLATE_STRING":
+                action_input_info += ".key = \"{}\", .data = sg_{}, .type = {}".format(field.id, self.action_output_prefix + field.id, field.type_id)
+            else:
+                action_input_info += ".key = \"{}\", .data = &sg_{}, .type = {}".format(field.id, self.action_output_prefix + field.id, field.type_id)
+            action_input_info += "},"
+        action_input_var_info += "static DeviceProperty g_actionOutput_{}[] = ".format(self.id)
+        result += action_para_info + action_input_var_info + "{\n"+action_input_info + "\n};\n"
+
+        return result
 
 class iot_struct:
     def __init__(self, model):
         self.version = model["version"]
         self.fields = []
         self.field_id = 0
+
         self.events = []
         self.event_id = 0
-        for field_define in model["properties"]:
-            if TEMPLATE_CONSTANTS.NAME not in field_define:
-                raise ValueError("错误：字段定义中未找到 Name 字段")
-            self.fields.append(iot_field(field_define["id"], field_define["name"], self.field_id, field_define))
-            self.field_id += 1
 
-        for event in model["events"]:
-            if TEMPLATE_CONSTANTS.NAME not in event:
-                raise ValueError("错误：字段定义中未找到 Name 字段")
-            self.events.append(iot_event(event["id"], event["name"], self.event_id, event))
-            self.event_id += 1
+        self.actions = []
+        self.action_id = 0
 
+        if  "properties" in model :
+            for field_define in model["properties"]:
+                if TEMPLATE_CONSTANTS.NAME not in field_define:
+                    raise ValueError("错误：字段定义中未找到 Name 字段")
+                self.fields.append(iot_field("", field_define["id"], field_define["name"], self.field_id, field_define))
+                self.field_id += 1
+
+        if  "events" in model :
+            for event in model["events"]:
+                if TEMPLATE_CONSTANTS.NAME not in event:
+                    raise ValueError("错误：字段定义中未找到 Name 字段")
+                self.events.append(iot_event(event["id"], event["name"], self.event_id, event))
+                self.event_id += 1
+
+        if  "actions" in model :
+            for action in model["actions"]:
+                if TEMPLATE_CONSTANTS.NAME not in action:
+                    raise ValueError("错误：字段定义中未找到 Name 字段")
+                self.actions.append(iot_action(action["id"], action["name"], self.action_id, action))
+                self.action_id += 1
 
     def dump_data_info(self):
         print("dump iot struct,counts:{}".format(self.field_id))
@@ -213,6 +301,7 @@ class iot_struct:
             else:
                 print("{} {} {} {}\n".format(temp_field.id, temp_field.type_name, temp_field.default_value,
                                              temp_field.type_define))
+
     def dump_event_info(self):
         count = 0
         event_str = ""
@@ -249,6 +338,7 @@ class iot_struct:
             if field.type_define == "TYPE_DEF_TEMPLATE_STRING":
                 init_str += "    {}.{}[0] = {};\n".format(var_gProduct, field.get_id_c_member_name(), "'\\0'")
                 init_str += "    {}[{}].data_property.data = {}.{};\n".format(var_gTemplate, count, var_gProduct, field.get_id_c_member_name())
+                init_str += "    {}[{}].data_property.data_buff_len = sizeof({}.{})/sizeof({}.{}[{}]);\n".format(var_gTemplate, count, var_gProduct, field.get_id_c_member_name(),var_gProduct, field.get_id_c_member_name(), count)
             else:
                 init_str += "    {}.{} = {};\n".format(var_gProduct, field.get_id_c_member_name(),field.get_id_default_value())
                 init_str += "    {}[{}].data_property.data = &{}.{};\n".format(var_gTemplate, count, var_gProduct, field.get_id_c_member_name())
@@ -284,7 +374,27 @@ class iot_struct:
             event_str +="\n    },"
         resault += event_config + events_var + event_str + "\n};\n"
         return resault
+    
+    def gen_action_config(self):
+        resault = ""
+        action_config = ""
+        actions_var = ""
+        action_str = ""
 
+        action_config += ("\n#define TOTAL_ACTION_COUNTS     ({})\n\n").format(self.action_id)
+        actions_var += "\nstatic DeviceAction g_actions[]={\n"
+        for action_d in self.actions:
+            action_config += "{}\n".format(action_d.gen_single_action_info())
+            action_str += "\n    {"
+            action_str += "\n     .pActionId = \"{}\",".format(action_d.id)
+            action_str += "\n     .timestamp = 0,"
+            action_str += "\n     .input_num = sizeof(g_actionInput_{})/sizeof(g_actionInput_{}[0]),".format(action_d.id, action_d.id)
+            action_str += "\n     .output_num = sizeof(g_actionOutput_{})/sizeof(g_actionOutput_{}[0]),".format(action_d.id, action_d.id)
+            action_str += "\n     .pInput = g_actionInput_{},".format(action_d.id)
+            action_str += "\n     .pOutput = g_actionOutput_{},".format(action_d.id)
+            action_str +="\n    },"
+        resault += action_config + actions_var + action_str + "\n};\n"
+        return resault
 
 def main():
     parser = argparse.ArgumentParser(description='Iothub datatemplate and events config code generator.', usage='use "./codegen.py -c xx/config.json" gen config code')
@@ -327,26 +437,31 @@ def main():
     try:
         snippet = iot_struct(thingmodel)
 
-        output_data_config_file_name = args.dest + "/data_config.c"
-        output_file = open(output_data_config_file_name, "w")
-        output_file.write("{}".format(snippet.gen_data_config()))
-        output_file.close()
+        if snippet.field_id != 0 :
+            output_data_config_file_name = args.dest + "/data_config.c"
+            output_file = open(output_data_config_file_name, "w")
+            output_file.write("{}".format(snippet.gen_data_config()))
+            output_file.close()
+            print(u"文件 {} 生成成功".format(output_data_config_file_name))
 
-        output_event_config_file_name = args.dest + "/events_config.c"
-        output_file = open(output_event_config_file_name, "w")
-        output_file.write("#ifdef EVENT_POST_ENABLED\n{}\n#endif\n".format(snippet.gen_event_config()))
-        output_file.close()
+        if snippet.event_id != 0 :
+            output_event_config_file_name = args.dest + "/events_config.c"
+            output_file = open(output_event_config_file_name, "w")
+            output_file.write("#ifdef EVENT_POST_ENABLED\n{}\n#endif\n".format(snippet.gen_event_config()))
+            output_file.close()
+            print(u"文件 {} 生成成功".format(output_event_config_file_name))
 
-
-        print(u"文件 {} 生成成功".format(output_data_config_file_name))
-        print(u"文件 {} 生成成功".format(output_event_config_file_name))
+        if snippet.action_id != 0 :
+            output_action_config_file_name = args.dest + "/action_config.c"
+            output_file = open(output_action_config_file_name, "w")
+            output_file.write("#ifdef ACTION_ENABLED\n{}\n#endif\n".format(snippet.gen_action_config()))
+            output_file.close()
+            print(u"文件 {} 生成成功".format(output_action_config_file_name))
 
         return 0
     except ValueError as e:
         print(e)
         return 1
 
-
 if __name__ == '__main__':
     sys.exit(main())
-

@@ -17,7 +17,9 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-//#define AT_PRINT_RAW_CMD
+#define AT_PRINT_RAW_CMD
+#undef  AT_PRINT_RAW_CMD
+
 #define WIDTH_SIZE           32
 
 #ifndef __INT_MAX__

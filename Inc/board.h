@@ -16,12 +16,6 @@
 #define OLED_I2C_Speed              400000  
 #define AT_UART_BAUDRATE			(115200)
 #define DEBUG_UART_BAUDRATE			(115200)
-#define BOARD_TYPE_ZHONGYU			(1)
-#define BOARD_TYPE_TENCENT_V1		(2)
-#define BOARD_TYPE					(BOARD_TYPE_TENCENT_V1)
-#define RTOS_USED					(1)
-
-
 
 
 void SystemClock_Config(void);

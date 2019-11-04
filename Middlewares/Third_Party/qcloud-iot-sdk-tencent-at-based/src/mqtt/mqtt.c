@@ -23,15 +23,15 @@ static bool sg_mqtt_lock = false;  //To do:  use mutex instand
 
 eAtResault register_sub_topic(SubscribeParams* subpara) 
 {
-	POINTER_SANITY_CHECK(subpara, AT_ERR_NULL); 
+	POINTER_SANITY_CHECK(subpara, QCLOUD_ERR_NULL); 
 	
 	int i;
-    eAtResault rc = AT_ERR_FAILURE;
+    eAtResault rc = QCLOUD_ERR_FAILURE;
 
 	if(sg_mqtt_lock)
 	{
 		Log_e("premsg is dealing, sub topic to be wait");
-		return AT_ERR_FAILURE; 
+		return QCLOUD_ERR_FAILURE; 
 	}
 	
 	sg_mqtt_lock = true;
@@ -46,20 +46,20 @@ eAtResault register_sub_topic(SubscribeParams* subpara)
                 sg_msg_handlers[i].topicFilter = NULL;
                 sg_msg_handlers[i].fp = NULL;
             }
-            rc = AT_ERR_SUCCESS;
+            rc = QCLOUD_RET_SUCCESS;
             break;
         }
     }
 	
     if (subpara->fp != NULL) 
 	{
-        if (rc == AT_ERR_FAILURE) 
+        if (rc == QCLOUD_ERR_FAILURE) 
 		{
             for (i = 0; i < QCLOUD_IOT_MAX_SUB_TOPIC; ++i) 
 			{
                 if (sg_msg_handlers[i].topicFilter == NULL) 
 				{
-                    rc = AT_ERR_SUCCESS;
+                    rc = QCLOUD_RET_SUCCESS;
                     break;
                 }
             }
@@ -80,19 +80,19 @@ eAtResault register_sub_topic(SubscribeParams* subpara)
 			else
 			{
 				Log_e("malloc err");
-				rc = AT_ERR_MALLOC;
+				rc = QCLOUD_ERR_MALLOC;
 			}
 			 
 
         }
 		else
 		{
-			 rc = AT_ERR_EXCEED_MAX_TOPICS;
+			 rc = QCLOUD_ERR_EXCEED_MAX_TOPICS;
 		}
     }
 	else
 	{
-		 rc = AT_ERR_SUCCESS;
+		 rc = QCLOUD_RET_SUCCESS;
 	}
 
 	sg_mqtt_lock = false;
@@ -182,7 +182,7 @@ static uint8_t _is_topic_matched(char *topic_filter, char *topicName, uint16_t t
  */
 eAtResault deliver_message(const char *data, uint32_t size)
 {
-    POINTER_SANITY_CHECK(data, AT_ERR_NULL);
+    POINTER_SANITY_CHECK(data, QCLOUD_ERR_NULL);
 	
     int argc = 0;
 	int	len = 0;
@@ -196,7 +196,7 @@ eAtResault deliver_message(const char *data, uint32_t size)
 	if(sg_mqtt_lock)
 	{
 		Log_e("premsg is dealing");
-		return AT_ERR_FAILURE; 
+		return QCLOUD_ERR_FAILURE; 
 	}
 	sg_mqtt_lock = true;
 	
@@ -205,7 +205,7 @@ eAtResault deliver_message(const char *data, uint32_t size)
     if (argc != 3)
     {
         Log_e("input msg format illegal");
-        Ret = AT_ERR_FAILURE;     
+        Ret = QCLOUD_ERR_FAILURE;     
     }
     else
 	{
@@ -236,7 +236,7 @@ eAtResault deliver_message(const char *data, uint32_t size)
 		//to do
 	}
 
-	Ret = AT_ERR_SUCCESS;     
+	Ret = QCLOUD_RET_SUCCESS;     
 	sg_mqtt_lock = false;
 	
 	return Ret;

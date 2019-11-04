@@ -33,18 +33,18 @@ eAtResault iot_device_info_init(const char *product_id, const char *device_name,
 	if ((MAX_SIZE_OF_PRODUCT_ID) < strlen(product_id))
 	{
 		Log_e("product name(%s) length:(%lu) exceeding limitation", product_id, strlen(product_id));
-		return AT_ERR_FAILURE;
+		return QCLOUD_ERR_FAILURE;
 	}
 	if ((MAX_SIZE_OF_DEVICE_NAME) < strlen(device_name))
 	{
 		Log_e("device name(%s) length:(%lu) exceeding limitation", device_name, strlen(device_name));
-		return AT_ERR_FAILURE;
+		return QCLOUD_ERR_FAILURE;
 	}
 
 	if ((MAX_SIZE_OF_DEVICE_SERC) < strlen(device_serc))
 	{
 		Log_e("device serc exceeding limitation");
-		return AT_ERR_FAILURE;
+		return QCLOUD_ERR_FAILURE;
 	}
 
 	strncpy(sg_device_info.product_id, product_id, MAX_SIZE_OF_PRODUCT_ID);
@@ -56,12 +56,12 @@ eAtResault iot_device_info_init(const char *product_id, const char *device_name,
     int ret = HAL_Snprintf(sg_device_info.client_id, MAX_SIZE_OF_CLIENT_ID, "%s%s", product_id, device_name);
     if ((ret < 0) || (ret >= MAX_SIZE_OF_CLIENT_ID)) {
         Log_e("set device info failed");
-        return AT_ERR_FAILURE;
+        return QCLOUD_ERR_FAILURE;
     }
 
     Log_i("SDK_Ver: %s, Product_ID: %s, Device_Name: %s", QCLOUD_IOT_AT_SDK_VERSION, product_id, device_name);
 
-	return AT_ERR_SUCCESS;
+	return QCLOUD_RET_SUCCESS;
 }
 
 DeviceInfo* iot_device_info_get(void)

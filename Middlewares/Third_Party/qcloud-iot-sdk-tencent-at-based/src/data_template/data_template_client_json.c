@@ -23,7 +23,7 @@ extern "C" {
 #include <stdarg.h>
 #include <stdio.h>
 
-#include "utils_method.h"
+#include "data_template_client_json.h"
 #include "lite-utils.h"
 #include "qcloud_iot_api_export.h"
 
@@ -38,12 +38,12 @@ void init_request_params(RequestParams *pParams, Method method, OnRequestCallbac
 int check_snprintf_return(int32_t returnCode, size_t maxSizeOfWrite) {
 
     if (returnCode >= maxSizeOfWrite) {
-        return AT_ERR_JSON_BUFFER_TRUNCATED;
+        return QCLOUD_ERR_JSON_BUFFER_TRUNCATED;
     } else if (returnCode < 0) { // 写入出错
-        return AT_ERR_JSON;
+        return QCLOUD_ERR_JSON;
     }
 
-    return AT_ERR_SUCCESS;
+    return QCLOUD_RET_SUCCESS;
 }
 
 void insert_str(char *pDestStr, char *pSourceStr, int pos) {
@@ -63,7 +63,7 @@ void insert_str(char *pDestStr, char *pSourceStr, int pos) {
 
 static int _direct_update_value(char *value, DeviceProperty *pProperty) {
 
-    int rc = AT_ERR_SUCCESS;
+    int rc = QCLOUD_RET_SUCCESS;
 
     if (pProperty->type == JBOOL) {
     	rc = LITE_get_boolean(pProperty->data, value);
@@ -84,7 +84,7 @@ static int _direct_update_value(char *value, DeviceProperty *pProperty) {
     } else if (pProperty->type == JDOUBLE) {
     	rc = LITE_get_double(pProperty->data, value);
     }else if(pProperty->type == JSTRING){
-		Log_d("string type wait to be deal,%s",value);
+		rc = LITE_get_string(pProperty->data, value, pProperty->data_buff_len);
 	}else if(pProperty->type == JOBJECT){
 		Log_d("Json type wait to be deal,%s",value);
 	}else{
@@ -116,22 +116,22 @@ int put_json_node(char *jsonBuffer, size_t sizeOfBuffer, const char *pKey, void 
     size_t remain_size = 0;
 
     if ((remain_size = sizeOfBuffer - strlen(jsonBuffer)) <= 1) {
-        return AT_ERR_JSON_BUFFER_TOO_SMALL;
+        return QCLOUD_ERR_JSON_BUFFER_TOO_SMALL;
     }
 
-#ifdef TRANSFER_LABEL_NEED
+#ifdef QUOTES_TRANSFER_NEED
 	rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\\\"%s\\\":", pKey);
 #else
 	rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\"%s\":", pKey);
 #endif
 
     rc = check_snprintf_return(rc_of_snprintf, remain_size);
-    if (rc != AT_ERR_SUCCESS) {
+    if (rc != QCLOUD_RET_SUCCESS) {
         return rc;
     }
 
     if ((remain_size = sizeOfBuffer - strlen(jsonBuffer)) <= 1) {
-        return AT_ERR_JSON_BUFFER_TOO_SMALL;
+        return QCLOUD_ERR_JSON_BUFFER_TOO_SMALL;
     }
 
     if (pData == NULL) {
@@ -169,7 +169,7 @@ int put_json_node(char *jsonBuffer, size_t sizeOfBuffer, const char *pKey, void 
             rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "%s"T_",",
                                       *(bool *) (pData) ? "true" : "false");
         } else if (type == JSTRING) {
-#ifdef TRANSFER_LABEL_NEED			
+#ifdef QUOTES_TRANSFER_NEED			
 			rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\\\"%s\\\""T_",", (char *) (pData));
 #else
 			rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\"%s\",", (char *) (pData));
@@ -185,28 +185,28 @@ int put_json_node(char *jsonBuffer, size_t sizeOfBuffer, const char *pKey, void 
 }
 
 
-int event_put_json_node(char *jsonBuffer, size_t sizeOfBuffer, const char *pKey, void *pData, JsonDataType type) {
+int template_put_json_node(char *jsonBuffer, size_t sizeOfBuffer, const char *pKey, void *pData, JsonDataType type) {
 
     int rc;
     int32_t rc_of_snprintf = 0;
     size_t remain_size = 0;
 
     if ((remain_size = sizeOfBuffer - strlen(jsonBuffer)) <= 1) {
-        return AT_ERR_JSON_BUFFER_TOO_SMALL;
+        return QCLOUD_ERR_JSON_BUFFER_TOO_SMALL;
     }
 
-#ifdef TRANSFER_LABEL_NEED
+#ifdef QUOTES_TRANSFER_NEED
 	rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\\\"%s\\\":", pKey);
 #else
     rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\"%s\":", pKey);
 #endif
     rc = check_snprintf_return(rc_of_snprintf, remain_size);
-    if (rc != AT_ERR_SUCCESS) {
+    if (rc != QCLOUD_RET_SUCCESS) {
         return rc;
     }
 
     if ((remain_size = sizeOfBuffer - strlen(jsonBuffer)) <= 1) {
-        return AT_ERR_JSON_BUFFER_TOO_SMALL;
+        return QCLOUD_ERR_JSON_BUFFER_TOO_SMALL;
     }
 
     if (pData == NULL) {
@@ -244,7 +244,7 @@ int event_put_json_node(char *jsonBuffer, size_t sizeOfBuffer, const char *pKey,
             rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "%u"T_",",
                                       *(bool *) (pData) ? 1 : 0);		
         } else if (type == JSTRING) {
-#ifdef TRANSFER_LABEL_NEED			
+#ifdef QUOTES_TRANSFER_NEED			
 			rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\\\"%s\\\""T_",", (char *) (pData));
 #else
 			rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\"%s\",", (char *) (pData));
@@ -266,7 +266,7 @@ int generate_client_token(char *pStrBuffer, size_t sizeOfBuffer, uint32_t *token
 }
 
 void build_empty_json(uint32_t *tokenNumber, char *pJsonBuffer) {
-#ifdef TRANSFER_LABEL_NEED
+#ifdef QUOTES_TRANSFER_NEED
 	HAL_Snprintf(pJsonBuffer, MAX_SIZE_OF_JSON_WITH_CLIENT_TOKEN, "{\\\"clientToken\\\":\\\"%s-%u\\\"}", iot_device_info_get()->product_id, (*tokenNumber)++);
 #else
 	HAL_Snprintf(pJsonBuffer, MAX_SIZE_OF_JSON_WITH_CLIENT_TOKEN, "{\"clientToken\":\"%s-%u\"}", iot_device_info_get()->product_id, (*tokenNumber)++);
@@ -278,6 +278,35 @@ bool parse_client_token(char *pJsonDoc, char **pClientToken) {
 	return *pClientToken == NULL ? false : true;
 }
 
+bool parse_action_id(char *pJsonDoc, char **pActionID) {
+	*pActionID = LITE_json_value_of(ACTION_ID_FIELD, pJsonDoc);
+	return *pActionID == NULL ? false : true;
+}
+
+bool parse_timestamp(char *pJsonDoc, int32_t *pTimestamp) {
+
+	bool ret = false;
+
+	char *timestamp = LITE_json_value_of(TIME_STAMP_FIELD, pJsonDoc);
+	if (timestamp == NULL) return false;
+
+	if (sscanf(timestamp, "%" SCNu32, pTimestamp) != 1) {
+		Log_e("parse code failed, errCode: %d", QCLOUD_ERR_JSON_PARSE);
+	}
+	else {
+		ret = true;
+	}
+
+	HAL_Free(timestamp);
+
+	return ret;
+}
+
+bool parse_action_input(char *pJsonDoc, char **pActionInput)
+{
+    *pActionInput = LITE_json_value_of(CMD_CONTROL_PARA, pJsonDoc);
+	return *pActionInput == NULL ? false : true;
+}
 
 bool parse_code_return(char *pJsonDoc, int32_t *pCode) {
 
@@ -286,7 +315,7 @@ bool parse_code_return(char *pJsonDoc, int32_t *pCode) {
 	char *code = LITE_json_value_of(REPLY_CODE, pJsonDoc);
 	if (code == NULL) return false;
 	if (sscanf(code, "%" SCNi32, pCode) != 1) {
-		Log_e("parse code failed, errCode: %d", AT_ERR_JSON_PARSE);
+		Log_e("parse code failed, errCode: %d", QCLOUD_ERR_JSON_PARSE);
 	}
 	else {
 		ret = true;
@@ -319,9 +348,6 @@ bool update_value_if_key_match(char *pJsonDoc, DeviceProperty *pProperty) {
 	return ret;
 }
 
-
-#ifdef MQTT_DATA_TEMPLATE_ENABLED
-
 bool parse_template_method_type(char *pJsonDoc, char **pMethod)
 {
 	*pMethod = LITE_json_value_of(METHOD_FIELD, pJsonDoc);
@@ -339,57 +365,6 @@ bool parse_template_cmd_control(char *pJsonDoc, char **control)
     *control = LITE_json_value_of(CMD_CONTROL_PARA, pJsonDoc);
 	return *control == NULL ? false : true;
 }
-
-#endif
-
-
-#ifdef MQTT_SHADOW_ENABLE
-
-bool parse_shadow_state(char *pJsonDoc, char **pState)
-{
-	*pState = LITE_json_value_of(PAYLOAD_VERSION, pJsonDoc);
-	return *pState == NULL ? false : true;
-}
-
-bool parse_shadow_operation_type(char *pJsonDoc, char **pType)
-{
-	*pType = LITE_json_value_of(TYPE_FIELD, pJsonDoc);
-	return *pType == NULL ? false : true;
-}
-
-bool parse_shadow_operation_result_code(char *pJsonDoc, int16_t *pResultCode)
-{
-	bool ret = false;
-
-	char *result_code = LITE_json_value_of(RESULT_FIELD, pJsonDoc);
-	if (result_code == NULL) return false;
-
-	if (sscanf(result_code, "%" SCNi16, pResultCode) != 1) {
-		Log_e("parse shadow result_code failed, errCode: %d", AT_ERR_JSON_PARSE);
-	}
-	else {
-		ret = true;
-	}
-
-	HAL_Free(result_code);
-
-	return ret;
-}
-
-bool parse_shadow_operation_delta(char *pJsonDoc, char **pDelta)
-{
-    *pDelta = LITE_json_value_of(PAYLOAD_STATE, pJsonDoc);
-	return *pDelta == NULL ? false : true;
-}
-
-bool parse_shadow_operation_get(char *pJsonDoc, char **pDelta)
-{
-    *pDelta = LITE_json_value_of(PAYLOAD_STATE_DELTA, pJsonDoc);
-	return *pDelta == NULL ? false : true;
-}
-
-
-#endif
 
 #ifdef __cplusplus
 }

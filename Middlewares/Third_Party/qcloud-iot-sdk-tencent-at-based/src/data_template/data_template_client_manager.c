@@ -23,7 +23,7 @@ extern "C" {
 #include <stdint.h>
 #include "utils_timer.h"
 #include "at_utils.h"
-#include "utils_method.h"
+#include "data_template_client_json.h"
 #include "data_template_client.h"
 #include "qcloud_iot_api_export.h"
 
@@ -41,7 +41,7 @@ static char sg_template_clientToken[MAX_SIZE_OF_CLIENT_TOKEN];
 static int _unsubscribe_template_downstream_topic(void* pClient)
 {
     IOT_FUNC_ENTRY;
-    int rc = AT_ERR_SUCCESS;
+    int rc = QCLOUD_RET_SUCCESS;
 
     char downstream_topic[MAX_SIZE_OF_CLOUD_TOPIC] = {0};
     int size = HAL_Snprintf(downstream_topic, MAX_SIZE_OF_CLOUD_TOPIC, "$thing/down/property/%s/%s", iot_device_info_get()->product_id, iot_device_info_get()->device_name);
@@ -49,11 +49,11 @@ static int _unsubscribe_template_downstream_topic(void* pClient)
     if (size < 0 || size > MAX_SIZE_OF_CLOUD_TOPIC - 1)
     {
         Log_e("buf size < topic length!");
-        IOT_FUNC_EXIT_RC(AT_ERR_FAILURE);
+        IOT_FUNC_EXIT_RC(QCLOUD_ERR_FAILURE);
     }
 
 	rc = module_mqtt_unsub(downstream_topic);
-    if (rc != AT_ERR_SUCCESS) {
+    if (rc != QCLOUD_RET_SUCCESS) {
         Log_e("unsubscribe topic: %s failed: %d.", downstream_topic, rc);
     }
 
@@ -84,11 +84,21 @@ void qcloud_iot_template_reset(void *pClient) {
 int qcloud_iot_template_init(Qcloud_IoT_Template *pTemplate) {
 	IOT_FUNC_ENTRY;
 
-    POINTER_SANITY_CHECK(pTemplate, AT_ERR_INVAL);
+    POINTER_SANITY_CHECK(pTemplate, QCLOUD_ERR_INVAL);
 
     pTemplate->mutex = HAL_MutexCreate();
     if (pTemplate->mutex == NULL)
-        IOT_FUNC_EXIT_RC(AT_ERR_FAILURE);
+        IOT_FUNC_EXIT_RC(QCLOUD_ERR_FAILURE);
+		
+		
+		pTemplate->inner_data.pMsgList = list_new();
+		if(pTemplate->inner_data.pMsgList)
+		{
+			pTemplate->inner_data.pMsgList->free = HAL_Free;
+		} else {
+		  Log_e("no memory to allocate pMsgList");
+    	IOT_FUNC_EXIT_RC(QCLOUD_ERR_FAILURE);
+		}
 
     pTemplate->inner_data.property_handle_list = list_new();
     if (pTemplate->inner_data.property_handle_list)
@@ -97,7 +107,7 @@ int qcloud_iot_template_init(Qcloud_IoT_Template *pTemplate) {
     }
     else {
     	Log_e("no memory to allocate property_handle_list");
-    	IOT_FUNC_EXIT_RC(AT_ERR_FAILURE);
+    	IOT_FUNC_EXIT_RC(QCLOUD_ERR_FAILURE);
     }
 
 	pTemplate->inner_data.reply_list = list_new();
@@ -106,7 +116,7 @@ int qcloud_iot_template_init(Qcloud_IoT_Template *pTemplate) {
 		pTemplate->inner_data.reply_list->free = HAL_Free;
 	} else {
 		Log_e("no memory to allocate reply_list");
-		IOT_FUNC_EXIT_RC(AT_ERR_FAILURE);
+		IOT_FUNC_EXIT_RC(QCLOUD_ERR_FAILURE);
 	}
 		
 	pTemplate->inner_data.event_list = list_new();
@@ -115,10 +125,19 @@ int qcloud_iot_template_init(Qcloud_IoT_Template *pTemplate) {
 		pTemplate->inner_data.event_list->free = HAL_Free;
 	} else {
 		Log_e("no memory to allocate event_list");
-		IOT_FUNC_EXIT_RC(AT_ERR_FAILURE);
+		IOT_FUNC_EXIT_RC(QCLOUD_ERR_FAILURE);
 	}
 
-	IOT_FUNC_EXIT_RC(AT_ERR_SUCCESS);
+	pTemplate->inner_data.action_handle_list = list_new();
+	if (pTemplate->inner_data.action_handle_list)
+	{
+		pTemplate->inner_data.action_handle_list->free = HAL_Free;
+	} else {
+		Log_e("no memory to allocate action_handle_list");
+		IOT_FUNC_EXIT_RC(QCLOUD_ERR_FAILURE);
+	}
+
+	IOT_FUNC_EXIT_RC(QCLOUD_RET_SUCCESS);
 }
 
 static void _set_control_clientToken(const char *pClientToken){
@@ -137,12 +156,12 @@ char * get_control_clientToken(void){
  * @param pClient                   Qcloud_IoT_Client对象
  * @param method                    文档操作方式
  * @param pJsonDoc                  等待发送的文档
- * @return 返回AT_ERR_SUCCESS, 表示发布文档请求成功
+ * @return 返回QCLOUD_ERR_SUCCESS, 表示发布文档请求成功
  */
 static int _publish_to_template_upstream_topic(Qcloud_IoT_Template *pTemplate, Method method, char *pJsonDoc)
 {
     IOT_FUNC_ENTRY;
-    int rc = AT_ERR_SUCCESS;
+    int rc = QCLOUD_RET_SUCCESS;
 
     char topic[MAX_SIZE_OF_CLOUD_TOPIC] = {0};
 	int size;
@@ -153,11 +172,11 @@ static int _publish_to_template_upstream_topic(Qcloud_IoT_Template *pTemplate, M
 	if (size < 0 || size > MAX_SIZE_OF_CLOUD_TOPIC - 1)
     {
         Log_e("buf size < topic length!");
-        IOT_FUNC_EXIT_RC(AT_ERR_FAILURE);
+        IOT_FUNC_EXIT_RC(QCLOUD_ERR_FAILURE);
     }
 
 	rc = module_mqtt_pub(topic, QOS0, pJsonDoc);
-	if(AT_ERR_SUCCESS != rc)
+	if(QCLOUD_RET_SUCCESS != rc)
 	{
 		Log_e("module mqtt pub fail,Ret:%d", rc);
 	}
@@ -173,15 +192,15 @@ static int _set_template_json_type(char *pJsonDoc, size_t sizeOfBuffer, Method m
 {
     IOT_FUNC_ENTRY;
 
-    int rc = AT_ERR_SUCCESS;
+    int rc = QCLOUD_RET_SUCCESS;
 
-    POINTER_SANITY_CHECK(pJsonDoc, AT_ERR_INVAL);
+    POINTER_SANITY_CHECK(pJsonDoc, QCLOUD_ERR_INVAL);
     char *method_str = NULL;
     switch (method) {
       case GET:
         method_str = GET_STATUS;
         break;
-      case UPDATE:
+      case REPORT:
         method_str = REPORT_CMD;
         break;
       case RINFO:
@@ -195,17 +214,17 @@ static int _set_template_json_type(char *pJsonDoc, size_t sizeOfBuffer, Method m
         break;	  
       default:
         Log_e("unexpected method!");
-        rc = AT_ERR_INVAL;
+        rc = QCLOUD_ERR_INVAL;
         break;
     }
-    if (rc != AT_ERR_SUCCESS)
+    if (rc != QCLOUD_RET_SUCCESS)
         IOT_FUNC_EXIT_RC(rc);
 
     size_t json_len = strlen(pJsonDoc);
     size_t remain_size = sizeOfBuffer - json_len;
 
     char json_node_str[64] = {0};
-#ifdef TRANSFER_LABEL_NEED	
+#ifdef QUOTES_TRANSFER_NEED	
     HAL_Snprintf(json_node_str, 64, "\\\"method\\\":\\\"%s\\\""T_", ", method_str);
 #else
 	 HAL_Snprintf(json_node_str, 64, "\"method\":\"%s\", ", method_str);
@@ -213,7 +232,7 @@ static int _set_template_json_type(char *pJsonDoc, size_t sizeOfBuffer, Method m
 
     size_t json_node_len = strlen(json_node_str);
     if (json_node_len >= remain_size - 1) {
-        rc = AT_ERR_INVAL;
+        rc = QCLOUD_ERR_INVAL;
     } else {
         insert_str(pJsonDoc, json_node_str, 1);
     }
@@ -303,14 +322,14 @@ static int _add_request_to_template_list(Qcloud_IoT_Template *pTemplate, const c
     if (pTemplate->inner_data.reply_list->len >= MAX_APPENDING_REQUEST_AT_ANY_GIVEN_TIME)
     {
         HAL_MutexUnlock(pTemplate->mutex);
-        IOT_FUNC_EXIT_RC(AT_ERR_MAX_APPENDING_REQUEST);
+        IOT_FUNC_EXIT_RC(QCLOUD_ERR_MAX_APPENDING_REQUEST);
     }
 
     Request *request = (Request *)HAL_Malloc(sizeof(Request));
     if (NULL == request) {
         HAL_MutexUnlock(pTemplate->mutex);
         Log_e("run memory malloc is error!");
-        IOT_FUNC_EXIT_RC(AT_ERR_FAILURE);
+        IOT_FUNC_EXIT_RC(QCLOUD_ERR_FAILURE);
     }
 
     request->callback = pParams->request_callback;
@@ -326,30 +345,30 @@ static int _add_request_to_template_list(Qcloud_IoT_Template *pTemplate, const c
     if (NULL == node) {
         HAL_MutexUnlock(pTemplate->mutex);
         Log_e("run list_node_new is error!");
-        IOT_FUNC_EXIT_RC(AT_ERR_FAILURE);
+        IOT_FUNC_EXIT_RC(QCLOUD_ERR_FAILURE);
     }
 
     list_rpush(pTemplate->inner_data.reply_list, node);
 
     HAL_MutexUnlock(pTemplate->mutex);
 
-    IOT_FUNC_EXIT_RC(AT_ERR_SUCCESS);
+    IOT_FUNC_EXIT_RC(QCLOUD_RET_SUCCESS);
 }
 
 
 int send_template_request(Qcloud_IoT_Template *pTemplate, RequestParams *pParams, char *pJsonDoc, size_t sizeOfBuffer)
 {
     IOT_FUNC_ENTRY;
-    POINTER_SANITY_CHECK(pTemplate, AT_ERR_INVAL);
-    POINTER_SANITY_CHECK(pJsonDoc, AT_ERR_INVAL);
-    POINTER_SANITY_CHECK(pParams, AT_ERR_INVAL);
-    int rc = AT_ERR_SUCCESS;
+    POINTER_SANITY_CHECK(pTemplate, QCLOUD_ERR_INVAL);
+    POINTER_SANITY_CHECK(pJsonDoc, QCLOUD_ERR_INVAL);
+    POINTER_SANITY_CHECK(pParams, QCLOUD_ERR_INVAL);
+    int rc = QCLOUD_RET_SUCCESS;
 	char* client_token = NULL;
 
 	char *tempBuff = HAL_Malloc(strlen(pJsonDoc) + 1);
 	if(NULL == tempBuff){
 		Log_e("malloc mem fail");
-		IOT_FUNC_EXIT_RC(AT_ERR_MALLOC);
+		IOT_FUNC_EXIT_RC(QCLOUD_ERR_MALLOC);
 	}
 	strncpy(tempBuff, pJsonDoc, strlen(pJsonDoc));
 	tempBuff[strlen(pJsonDoc)] = '\0';
@@ -359,25 +378,25 @@ int send_template_request(Qcloud_IoT_Template *pTemplate, RequestParams *pParams
     if (!parse_client_token(tempBuff, &client_token)) {
         Log_e("fail to parse client token!");
 		HAL_Free(tempBuff);
-        IOT_FUNC_EXIT_RC(AT_ERR_INVAL);
+        IOT_FUNC_EXIT_RC(QCLOUD_ERR_INVAL);
     }
 	HAL_Free(tempBuff);
 
-    if (rc != AT_ERR_SUCCESS)
+    if (rc != QCLOUD_RET_SUCCESS)
         IOT_FUNC_EXIT_RC(rc);
 
     rc = _set_template_json_type(pJsonDoc, sizeOfBuffer, pParams->method);
-    if (rc != AT_ERR_SUCCESS)
+    if (rc != QCLOUD_RET_SUCCESS)
         IOT_FUNC_EXIT_RC(rc);
 
 	Log_d("Report Doc:%s", pJsonDoc);
     // 相应的 report topic 订阅成功或已经订阅
-    if (rc == AT_ERR_SUCCESS) {
+    if (rc == QCLOUD_RET_SUCCESS) {
         rc = _publish_to_template_upstream_topic(pTemplate, pParams->method, pJsonDoc);
     }
 
-    if (rc == AT_ERR_SUCCESS) {
-#ifdef TRANSFER_LABEL_NEED			
+    if (rc == QCLOUD_RET_SUCCESS) {
+#ifdef QUOTES_TRANSFER_NEED			
 		at_strip(client_token, '\\');
 #endif
         rc = _add_request_to_template_list(pTemplate, client_token, pParams);
@@ -566,7 +585,7 @@ int subscribe_template_downstream_topic(Qcloud_IoT_Template *pTemplate)
 
 		if (downstream_topic == NULL) 
 		{
-			IOT_FUNC_EXIT_RC(AT_ERR_FAILURE);
+			IOT_FUNC_EXIT_RC(QCLOUD_ERR_FAILURE);
 		}
 		memset(downstream_topic, 0x0, MAX_SIZE_OF_CLOUD_TOPIC);
 
@@ -575,14 +594,14 @@ int subscribe_template_downstream_topic(Qcloud_IoT_Template *pTemplate)
 		{
 			Log_e("buf size < topic length!");
 			HAL_Free(downstream_topic);
-			IOT_FUNC_EXIT_RC(AT_ERR_FAILURE);
+			IOT_FUNC_EXIT_RC(QCLOUD_ERR_FAILURE);
 		}
 			pTemplate->inner_data.downstream_topic = downstream_topic;
 	}
 
 
 	rc = module_mqtt_sub(pTemplate->inner_data.downstream_topic, QOS0, _on_template_downstream_topic_handler, (void *)pTemplate);
-	if (rc != AT_ERR_SUCCESS) 
+	if (rc != QCLOUD_RET_SUCCESS) 
 	{
 		Log_e("subscribe topic: %s failed: %d.", pTemplate->inner_data.downstream_topic, rc);
 	}

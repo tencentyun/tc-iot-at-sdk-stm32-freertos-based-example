@@ -27,7 +27,7 @@ extern "C" {
 #include <stdbool.h>
 #include "at_client.h"
 #include "utils_list.h"
-#include "utils_method.h"
+#include "data_template_client_json.h"
 #include "qcloud_iot_export_data_template.h"
 
 #define  TEMPLATE_SYNC_TIMEOUT				(2000)
@@ -38,8 +38,10 @@ typedef struct _TemplateInnerData {
     uint32_t token_num;
     int32_t sync_status;
 	uint32_t eventflags;
+    List *pMsgList;
 	List *event_list;
     List *reply_list;
+	List *action_handle_list;
     List *property_handle_list;
 	char *upstream_topic;		//上行topic
     char *downstream_topic;		//下行topic
@@ -50,6 +52,12 @@ typedef struct _Template {
 	eClientState status;
     TemplateInnerData inner_data;
 } Qcloud_IoT_Template;
+
+typedef struct _DownStreamMsg
+{
+    char *data;
+    int  size;
+}DownStreamMsg;
 
 
 /**

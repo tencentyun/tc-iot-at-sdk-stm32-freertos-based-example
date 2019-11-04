@@ -36,7 +36,6 @@ extern "C" {
 #define MAX_EVENT_WAIT_REPLY    (10) 
 #define EVENT_MAX_DATA_NUM		(255)
 
-#define EVENT_SDK_VERSION		"1.0"
 #define POST_EVENT				"event_post"
 #define POST_EVENTS				"events_post"
 #define REPLY_EVENT				"event_reply"

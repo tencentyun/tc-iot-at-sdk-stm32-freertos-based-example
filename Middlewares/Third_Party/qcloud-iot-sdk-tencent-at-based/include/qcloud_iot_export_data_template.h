@@ -19,7 +19,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
+#include "config.h"
 #include "qcloud_iot_export_mqtt.h"
 #include "qcloud_iot_export_method.h"
 
@@ -29,7 +29,7 @@ extern "C" {
  * @brief 定义数据模板的数据点类型
  */
 #define TYPE_TEMPLATE_INT    	JINT32
-#define TYPE_TEMPLATEENUM    	JINT32
+#define TYPE_TEMPLATE_ENUM    	JINT32
 #define TYPE_TEMPLATE_FLOAT  	JFLOAT
 #define TYPE_TEMPLATE_BOOL   	JINT8
 #define TYPE_TEMPLATE_STRING 	JSTRING
@@ -86,7 +86,7 @@ typedef struct  _sEvent_{
 typedef enum _eControlReplyCode_{
 		eDEAL_SUCCESS = 0,
 		eDEAL_FAIL = -1,
-}eControlReplyCode;
+}eReplyCode;
 
 /**
  * @brief control msg reply 参数
@@ -95,11 +95,11 @@ typedef struct _sControlReplyPara {
 
     uint32_t  timeout_ms;         						      // 请求超时时间, 单位:ms
     
-    eControlReplyCode   code;    							  // 回复code，0：成功 非0：失败
+    eReplyCode   code;    							  // 回复code，0：成功 非0：失败
 
     char      status_msg[MAX_CONTORL_REPLY_STATUS_LEN];       // 附加信息
 
-} sControlReplyPara;
+} sReplyPara;
 
 
 /**
@@ -254,7 +254,7 @@ int IOT_Template_ClearControl(void *handle, char *pClientToken, OnRequestCallbac
  *	@param replyPara		  回复参数，成功/失败及对应的附加信息  
  * @return					 返回QCLOUD_ERR_SUCCESS, 表示构造成功
  */ 
-int IOT_Template_ControlReply(void *handle, char *pJsonDoc, size_t sizeOfBuffer, sControlReplyPara *replyPara);
+int IOT_Template_ControlReply(void *handle, char *pJsonDoc, size_t sizeOfBuffer, sReplyPara *replyPara);
 
 /**
  * @brief  构造系统信息上报json数据包
@@ -323,28 +323,28 @@ typedef void (*OnEventReplyCallback)(char *msg, void *context);
  *
  * @param  flag  设置发生的事件集
  */
-void setEventFlag(void *client, uint32_t flag);
+void IOT_Event_setFlag(void *client, uint32_t flag);
 
 /**
  * @brief 清除事件标记
  *
  * @param  flag  待清除的事件集
  */
-void clearEventFlag(void *client, uint32_t flag);
+void IOT_Event_clearFlag(void *client, uint32_t flag);
 
 /**
  * @brief 获取已置位的事件集
  *
  * @return 已置位的事件集
  */
-uint32_t getEventFlag(void *client);
+uint32_t IOT_Event_getFlag(void *client);
 
 /**
  * @brief 事件client初始化，使用事件功能前需先调用
  *
  * @param c    shadow 实例指针
  */
-int event_init(void *c);
+int IOT_Event_Init(void *c);
 
 /**
  * @brief 处理事件队列中已经超时的请求
@@ -365,7 +365,7 @@ void handle_template_expired_event(void *client);
  * @param replyCb	  事件回复消息的回调 
  * @return @see IoT_Error_Code	  
  */
-int qcloud_iot_post_event(void *pClient, char *pJsonDoc, size_t sizeOfBuffer, uint8_t event_count, sEvent *pEventArry[], OnEventReplyCallback replyCb);                                            
+int IOT_Post_Event(void *pClient, char *pJsonDoc, size_t sizeOfBuffer, uint8_t event_count, sEvent *pEventArry[], OnEventReplyCallback replyCb);                                            
 
 /**
  * @brief 事件上报，用户传入已构建好的事件的json格式，SDK增加事件头部即上报
@@ -411,10 +411,48 @@ int qcloud_iot_post_event(void *pClient, char *pJsonDoc, size_t sizeOfBuffer, ui
  * @param replyCb	  事件回复消息的回调 
  * @return @see IoT_Error_Code	  
  */
-int qcloud_iot_post_event_raw(void *pClient, char *pJsonDoc, size_t sizeOfBuffer, char *pEventMsg, OnEventReplyCallback replyCb);                                            
+int IOT_Post_Event_Raw(void *pClient, char *pJsonDoc, size_t sizeOfBuffer, char *pEventMsg, OnEventReplyCallback replyCb);                                            
 
 
 #endif
+
+#ifdef ACTION_ENABLED
+/**
+ * @brief 注册当前设备的行为
+ *
+ * @param pClient    Client结构体
+ * @param pProperty  设备属性
+ * @param callback   设备属性更新回调处理函数
+ * @return           返回QCLOUD_ERR_SUCCESS, 表示请求成功
+ */
+
+int IOT_Template_Register_Action(void *handle, DeviceAction *pAction, OnActionHandleCallback callback);
+
+/**
+ * @brief 删除已经注册过的设备行为
+ *
+ * @param pClient    Client结构体
+ * @param pProperty  设备属性
+ * @return           返回QCLOUD_ERR_SUCCESS, 表示请求成功
+ */
+
+int IOT_Template_UnRegister_Action(void *handle, DeviceAction *pAction); 
+
+/**
+* @brief 设备行为回复 
+* @param pClient		  handle to data_template client
+* @param pClientToken	  correspond to the clientToken of action msg 
+* @param pJsonDoc	  	  data buffer for reply
+* @param sizeOfBuffer     length of data buffer
+* @param pAction 		  pointer of action 	
+* @param replyPara        action reply info
+* @return				  QCLOUD_RET_SUCCESS when success, or err code for failure
+*/ 
+
+int IOT_ACTION_REPLY(void *pClient, const char *pClientToken, char *pJsonDoc, size_t sizeOfBuffer, DeviceAction *pAction, sReplyPara *replyPara);
+
+#endif
+
 
 
 #ifdef __cplusplus

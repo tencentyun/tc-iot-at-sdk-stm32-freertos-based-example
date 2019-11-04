@@ -84,7 +84,8 @@ void InitRGBState(void);
 void GrayDataSend(uint8_t r, uint8_t g, uint8_t b);
 void BuzzerControl(eBuzzer_control_type eCtlType);
 void MotorControl(motor_control_type eCtlType);
-HAL_StatusTypeDef HumAndTempRead(eHT_Select_type eSelect, uint32_t *value);
+void GetLumen(uint32_t *plumen);
+HAL_StatusTypeDef HumAndTempRead(eHT_Select_type eSelect, float *value);
 
 
 

@@ -28,6 +28,7 @@ typedef enum{
 	eMODULE_WIFI = 1,
 	eMODULE_ESP8266 = 2,
 	eMODULE_N21 = 3,
+	eMODULE_L206D = 4,
 	eMODULE_DEFAULT = 0xFF,
 }eModuleType;
 

@@ -28,7 +28,7 @@
 #define 	MAX_SIZE_OF_CLIENT_ID                                   (80)
 
 /* MQTT 阻塞调用(包括连接, 订阅, 发布等)的超时时间, 单位:ms 建议5000ms */
-#define QCLOUD_IOT_MQTT_COMMAND_TIMEOUT                             (5 * 1000)
+#define QCLOUD_IOT_MQTT_COMMAND_TIMEOUT                             (10 * 1000)
 
 
 /* 产品名称的最大长度 */

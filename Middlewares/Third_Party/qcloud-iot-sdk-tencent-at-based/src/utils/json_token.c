@@ -23,6 +23,10 @@
 #include "lite-utils.h"
 #include "qcloud_iot_export_error.h"
 
+#define Max(a,b) ((a) > (b) ? (a) : (b))
+#define Min(a,b) ((a) < (b) ? (a) : (b))
+
+
 char *LITE_json_value_of(char *key, char *src)
 {
     char       *value = NULL;
@@ -131,35 +135,35 @@ void LITE_json_keys_release(list_head_t *keylist)
 }
 
 int LITE_get_int32(int32_t *value, char *src) {
-	return (sscanf(src, "%" SCNi32, value) == 1) ? AT_ERR_SUCCESS : AT_ERR_FAILURE;	
+	return (sscanf(src, "%" SCNi32, value) == 1) ? QCLOUD_RET_SUCCESS : QCLOUD_ERR_FAILURE;	
 }
 
 int LITE_get_int16(int16_t *value, char *src) {
-	return (sscanf(src, "%" SCNi16, value) == 1) ? AT_ERR_SUCCESS : AT_ERR_FAILURE;
+	return (sscanf(src, "%" SCNi16, value) == 1) ? QCLOUD_RET_SUCCESS : QCLOUD_ERR_FAILURE;
 }
 
 int LITE_get_int8(int8_t *value, char *src) {
-	return (sscanf(src, "%" SCNi8, value) == 1) ? AT_ERR_SUCCESS : AT_ERR_FAILURE;
+	return (sscanf(src, "%" SCNi8, value) == 1) ? QCLOUD_RET_SUCCESS : QCLOUD_ERR_FAILURE;
 }
 
 int LITE_get_uint32(uint32_t *value, char *src) {
-	return (sscanf(src, "%" SCNu32, value) == 1) ? AT_ERR_SUCCESS : AT_ERR_FAILURE;
+	return (sscanf(src, "%" SCNu32, value) == 1) ? QCLOUD_RET_SUCCESS : QCLOUD_ERR_FAILURE;
 }
 
 int LITE_get_uint16(uint16_t *value, char *src) {
-	return (sscanf(src, "%" SCNu16, value) == 1) ? AT_ERR_SUCCESS : AT_ERR_FAILURE;
+	return (sscanf(src, "%" SCNu16, value) == 1) ? QCLOUD_RET_SUCCESS : QCLOUD_ERR_FAILURE;
 }
 
 int LITE_get_uint8(uint8_t *value, char *src) {
-	return (sscanf(src, "%" SCNu8, value) == 1) ? AT_ERR_SUCCESS : AT_ERR_FAILURE;
+	return (sscanf(src, "%" SCNu8, value) == 1) ? QCLOUD_RET_SUCCESS : QCLOUD_ERR_FAILURE;
 }
 
 int LITE_get_float(float *value, char *src) {
-	return (sscanf(src, "%f", value) == 1) ? AT_ERR_SUCCESS : AT_ERR_FAILURE;
+	return (sscanf(src, "%f", value) == 1) ? QCLOUD_RET_SUCCESS : QCLOUD_ERR_FAILURE;
 }
 
 int LITE_get_double(double *value, char *src) {
-	return (sscanf(src, "%lf", value) == 1) ? AT_ERR_SUCCESS : AT_ERR_FAILURE;
+	return (sscanf(src, "%lf", value) == 1) ? QCLOUD_RET_SUCCESS : QCLOUD_ERR_FAILURE;
 }
 
 int LITE_get_boolean(bool *value, char *src) {
@@ -170,6 +174,20 @@ int LITE_get_boolean(bool *value, char *src) {
 		*value = true;
 	}
 
-	return AT_ERR_SUCCESS;
+	return QCLOUD_RET_SUCCESS;
 }
+
+int LITE_get_string(int8_t        *value, char *src, uint16_t max_len) {
+	int rc;
+	
+	if(NULL != strncpy((char *)value, src, max_len)){
+		value[Min(strlen(src), max_len)] = '\0';
+		rc = QCLOUD_RET_SUCCESS;
+	}else{
+		rc = QCLOUD_ERR_FAILURE;
+	}
+	
+	return rc;
+}
+
 

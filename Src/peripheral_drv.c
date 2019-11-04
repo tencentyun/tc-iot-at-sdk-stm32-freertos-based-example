@@ -19,17 +19,9 @@
 extern I2C_HandleTypeDef hi2c2;
 extern I2C_HandleTypeDef hi2c1;
 
-#if (BOARD_TYPE == BOARD_TYPE_ZHONGYU)
-	I2C_HandleTypeDef *g_OledI2C = &hi2c2;
-	I2C_HandleTypeDef *g_HtI2C = &hi2c2;
-#elif (BOARD_TYPE == BOARD_TYPE_TENCENT_V1)
-	I2C_HandleTypeDef *g_OledI2C = &hi2c1;
-	I2C_HandleTypeDef *g_HtI2C = &hi2c1;
-#else
-	#error unknow board type
-#endif
 
-
+I2C_HandleTypeDef *g_OledI2C = &hi2c2;
+I2C_HandleTypeDef *g_HtI2C = &hi2c2;
 
 const unsigned char F8X16[]=	  
 {
@@ -455,13 +447,7 @@ HAL_StatusTypeDef OledInit(void)
 {
 	HAL_StatusTypeDef Ret;
 
-#if (BOARD_TYPE == BOARD_TYPE_ZHONGYU)
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_SET);
-#elif (BOARD_TYPE == BOARD_TYPE_TENCENT_V1)
-	HAL_GPIO_WritePin(GPIOE, GPIO_PIN_0, GPIO_PIN_SET);
-#else
-	#error unknow board type
-#endif
+	//HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_SET);
 	
 	Ret = OledWriteOnI2c(CMD_TYPE, 0xae);//--turn off oled panel
 	Ret |= OledWriteOnI2c(CMD_TYPE, 0x00);//---set low column address
@@ -502,7 +488,7 @@ HAL_StatusTypeDef OledInit(void)
 
 //==============humidity and temperature sensor driver begin=======================//
 
-HAL_StatusTypeDef HumAndTempRead(eHT_Select_type eSelect, uint32_t *pValue) 
+HAL_StatusTypeDef HumAndTempRead(eHT_Select_type eSelect, float *pValue) 
 {	
 	uint8_t DataBuff[4] = {0};
 	uint8_t CmdBuff[2] = {0};
@@ -674,6 +660,19 @@ void MotorControl(motor_control_type eCtlType)
 		HAL_GPIO_WritePin(GPIOE, GPIO_PIN_15, GPIO_PIN_RESET);	
 	}
 }
+
+//仅提供线性关系参考值
+extern ADC_HandleTypeDef hadc3;
+extern void HAL_DelayMs(uint32_t ms);
+void GetLumen(uint32_t *plumen)
+{
+	uint32_t vol;
+	HAL_ADC_Start(&hadc3);
+	HAL_DelayMs(200);
+	vol = HAL_ADC_GetValue(&hadc3);
+	*plumen = (4000 - vol)/2;
+}
+
 
 void BuzzerControl(eBuzzer_control_type eCtlType)
 {

@@ -10,23 +10,17 @@
   
 #ifndef __HAL_EXPORT_H__
 #define __HAL_EXPORT_H__
+#include <stdarg.h>
 #include "stdint.h"
 #include "stdbool.h"
-#include <stdarg.h>
+#include "config.h"
 
 #define 	PARSE_THREAD_STACK_SIZE		1024
-#define 	OS_USED
+
 #define 	_IN_            /* 表明这是一个输入参数. */
 #define		_OU_            /* 表明这是一个输出参数. */
 #define 	HAL_AT_ERROR	   -1  
 #define 	HAL_AT_OK		   0
-
-#define  	AUTH_MODE_KEY
-#define 	DEBUG_DEV_INFO_USED
-
-#ifndef 	AUTH_MODE_KEY	//非PSK认证则为证书认证
-#define		AUTH_MODE_CERT
-#endif
 
 //#define 	AT_PRINT_RAW_CMD
 

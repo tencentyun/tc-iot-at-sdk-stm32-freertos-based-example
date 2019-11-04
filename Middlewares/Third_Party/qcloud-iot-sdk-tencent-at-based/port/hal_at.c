@@ -21,10 +21,10 @@
 
 
 
-#define AT_UART_IRQHandler           USART3_IRQHandler
+#define AT_UART_IRQHandler           UART4_IRQHandler
 
-extern UART_HandleTypeDef huart3;
-static UART_HandleTypeDef *pAtUart = &huart3;
+extern UART_HandleTypeDef huart4;
+static UART_HandleTypeDef *pAtUart = &huart4;
 
 /*uart data recv buff which used by at_client*/
 extern  sRingbuff 	  g_ring_buff;
@@ -78,10 +78,28 @@ int module_power_on(void)
 	Log_e("module power on is not implement");
 	AT_Uart_Init();
 	HAL_DelayMs(100);
+	
+#ifdef 	MODULE_TYPE_ESP8266
 	/*work around first byte miss*/
 	at_send_data("AT+RST\r\n", strlen("AT+RST\r\n"));
 	HAL_DelayMs(100);
-	at_send_data("AT+RST\r\n", strlen("AT+RST\r\n"));	
+	at_send_data("AT+RST\r\n", strlen("AT+RST\r\n"));
+#endif
+
+#ifdef 	MODULE_TYPE_L206D
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_SET);
+	HAL_DelayMs(1000);
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_RESET);
+	/* reset waiting delay */
+	HAL_DelayMs(1000);
+	
+	/*reset module work around first byte miss*/
+	at_send_data(" AT+CFUN=1,1\r\n", strlen(" AT+CFUN=1,1\r\n"));
+	HAL_DelayMs(100);
+	at_send_data(" AT+CFUN=1,1\r\n", strlen(" AT+CFUN=1,1\r\n"));
+	HAL_DelayMs(1000);
+#endif
+
 	
     /* reset waiting delay */
     HAL_DelayMs(2000);

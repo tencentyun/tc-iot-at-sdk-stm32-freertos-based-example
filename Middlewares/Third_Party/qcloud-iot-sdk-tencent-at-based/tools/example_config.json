@@ -1,36 +1,15 @@
 {
     "version":"1.0",
+    "profile":{
+        "ProductId":"G5OV4CREFI",
+        "CategoryId":"3"
+    },
     "properties":[
-        {
-            "id":"time",
-            "name":"time",
-            "required":false,
-            "desc":"",
-            "mode":"rw",
-            "define":{
-                "type":"timestamp"
-            }
-        },
-        {
-            "id":"float",
-            "name":"float",
-            "required":false,
-            "desc":"",
-            "mode":"r",
-            "define":{
-                "type":"float",
-                "min":"-10",
-                "max":"10",
-                "start":"-5",
-                "step":"0.5",
-                "unit":"cm"
-            }
-        },
         {
             "id":"light_switch",
             "name":"电灯开关",
-            "required":true,
             "desc":"控制电灯开灭",
+            "required":true,
             "mode":"rw",
             "define":{
                 "type":"bool",
@@ -56,17 +35,16 @@
         },
         {
             "id":"brightness",
-            "name":"颜色",
-            "required":false,
-            "desc":"灯光颜色",
+            "name":"亮度",
+            "desc":"灯光亮度",
             "mode":"rw",
             "define":{
                 "type":"int",
-                "min":"-9",
+                "unit":"%",
+                "step":"1",
+                "min":"0",
                 "max":"100",
-                "start":"-1",
-                "step":"5",
-                "unit":"cm"
+                "start":"1"
             }
         },
         {
@@ -77,93 +55,16 @@
             "required":true,
             "define":{
                 "type":"string",
-                "min":"1",
+                "min":"0",
                 "max":"64"
             }
         }
     ],
     "events":[
         {
-            "id":"all_function",
-            "name":"ALL_FUNCTION",
-            "required":false,
-            "desc":"",
-            "params":[
-                {
-                    "id":"bool",
-                    "name":"bool",
-                    "desc":"",
-                    "define":{
-                        "type":"bool",
-                        "mapping":{
-                            "0":"关",
-                            "1":"开"
-                        }
-                    }
-                },
-                {
-                    "id":"int",
-                    "name":"int",
-                    "desc":"",
-                    "define":{
-                        "type":"int",
-                        "min":"1",
-                        "max":"100",
-                        "start":"0",
-                        "step":"1",
-                        "unit":"cm"
-                    }
-                },
-                {
-                    "id":"str",
-                    "name":"str",
-                    "desc":"",
-                    "define":{
-                        "type":"string",
-                        "min":"1",
-                        "max":"64"
-                    }
-                },
-                {
-                    "id":"float",
-                    "name":"float",
-                    "desc":"",
-                    "define":{
-                        "type":"float",
-                        "min":"0",
-                        "max":"100",
-                        "start":"0",
-                        "step":"1.5",
-                        "unit":"cm"
-                    }
-                },
-                {
-                    "id":"enum1",
-                    "name":"enum1",
-                    "desc":"",
-                    "define":{
-                        "type":"enum",
-                        "mapping":{
-                            "0":"color",
-                            "1":"door"
-                        }
-                    }
-                },
-                {
-                    "id":"time",
-                    "name":"time",
-                    "desc":"",
-                    "define":{
-                        "type":"timestamp"
-                    }
-                }
-            ],
-            "type":"alert"
-        },
-        {
             "id":"status_report",
             "name":"DeviceStatus",
-            "desc":"Report the device status我是中文",
+            "desc":"Report the device status",
             "type":"info",
             "required":true,
             "params":[
@@ -185,8 +86,30 @@
                     "desc":"Some extra message",
                     "define":{
                         "type":"string",
-                        "min":"1",
+                        "min":"0",
                         "max":"64"
+                    }
+                }
+            ]
+        },
+        {
+            "id":"low_voltage",
+            "name":"LowVoltage",
+            "desc":"Alert for device voltage is low",
+            "type":"alert",
+            "required":false,
+            "params":[
+                {
+                    "id":"voltage",
+                    "name":"Voltage",
+                    "desc":"Current voltage",
+                    "define":{
+                        "type":"float",
+                        "unit":"V",
+                        "step":"1",
+                        "min":"0.0",
+                        "max":"24.0",
+                        "start":"1"
                     }
                 }
             ]
@@ -194,8 +117,9 @@
         {
             "id":"hardware_fault",
             "name":"Hardware_fault",
-            "required":false,
             "desc":"Report hardware fault",
+            "type":"fault",
+            "required":false,
             "params":[
                 {
                     "id":"name",
@@ -203,7 +127,7 @@
                     "desc":"Name like: memory,tf card, censors ...",
                     "define":{
                         "type":"string",
-                        "min":"1",
+                        "min":"0",
                         "max":"64"
                     }
                 },
@@ -217,14 +141,68 @@
                         "step":"1",
                         "min":"0",
                         "max":"2000",
-                        "start":"0"
+                        "start":"1"
+                    }
+                }
+            ]
+        }
+    ],
+    "actions":[
+        {
+            "id":"light_blink",
+            "name":"light_blink",
+            "desc":"根据time和color实现灯的闪烁",
+            "input":[
+                {
+                    "id":"time",
+                    "name":"time",
+                    "define":{
+                        "type":"int",
+                        "min":"0",
+                        "max":"10",
+                        "start":"0",
+                        "step":"1",
+                        "unit":"秒"
+                    }
+                },
+                {
+                    "id":"color",
+                    "name":"color",
+                    "define":{
+                        "type":"bool",
+                        "mapping":{
+                            "0":"red",
+                            "1":"green"
+                        }
+                    }
+                },
+                {
+                    "id":"total_time",
+                    "name":"total_time",
+                    "define":{
+                        "type":"int",
+                        "min":"0",
+                        "max":"100",
+                        "start":"0",
+                        "step":"1",
+                        "unit":"秒"
                     }
                 }
             ],
-            "type":"fault"
+            "output":[
+                {
+                    "id":"err_code",
+                    "name":"code",
+                    "define":{
+                        "type":"bool",
+                        "mapping":{
+                            "0":"ok",
+                            "1":"failed"
+                        }
+                    }
+                }
+            ],
+            "required":false
         }
-    ],
-    "profile":{
-        "productID":"C0NEMO9UO0"
-    }
+    ]
 }

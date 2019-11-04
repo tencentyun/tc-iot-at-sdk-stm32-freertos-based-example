@@ -37,10 +37,10 @@ typedef RequestAck ReplyAck;
  */
 typedef enum {
     GET = 0,     // 获取云端设备文档
-    UPDATE = 1,  // 更新或创建云端设备文档    
+    REPORT = 1,  // 更新或创建云端设备文档    
     RINFO = 2,   // 上报系统信息
-    REPLY = 3,  // 数据模板服务端下行消息回复
-    CLEAR = 4,  // 删除离线期间的control数据
+    REPLY = 3,   // 数据模板服务端下行消息回复
+    CLEAR = 4,   // 删除离线期间的control数据
 } Method;
 
 /**
@@ -66,8 +66,22 @@ typedef enum {
 typedef struct _JSONNode {
     char   		 *key;    // 该JSON节点的Key
     void         *data;   // 该JSON节点的Value
+    uint16_t     data_buff_len;  // data buff len, for string type value update
     JsonDataType type;    // 该JSON节点的数据类型
 } DeviceProperty;
+
+
+/**
+ * @brief Define a device action
+ */
+typedef struct {
+    char    *pActionId;     // action id
+    uint32_t timestamp;	    // action timestamp
+    uint8_t  input_num;     // input num
+    uint8_t  output_num;    // output mun
+    DeviceProperty *pInput;  // input 
+    DeviceProperty *pOutput; // output
+} DeviceAction;
 
 
 /**
@@ -103,8 +117,16 @@ typedef void (*OnReplyCallback)(void *pClient, Method method, ReplyAck replyAck,
  */
 typedef void (*OnPropRegCallback)(void *pClient, const char *pJsonValueBuffer, uint32_t valueLength, DeviceProperty *pProperty);
 
+
+/**
+ * @brief action handle callback 
+ *
+ * @param pAction   action with input data
+ */
+typedef void (*OnActionHandleCallback)(void *pClient, const char *pClientToken, DeviceAction *pAction);
+
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* QCLOUD_IOT_EXPORT_SHADOW_H_ */
+#endif /* QCLOUD_IOT_EXPORT_METHOD_H_ */

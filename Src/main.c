@@ -55,15 +55,12 @@
 #include "qcloud_iot_api_export.h"
 
 #define MQTT_SAMPLE				1
-#define SHADOW_SAMPLE			2
-#define DATATEMPLATE_SAMPLE		3
-#define LIGHT_SCENARY_SAMPLE	4
-#define RUN_SAMPLE_TYPE			LIGHT_SCENARY_SAMPLE
-
+#define DATATEMPLATE_SAMPLE		2
+#define LIGHT_SCENARY_SAMPLE	3
+#define RUN_SAMPLE_TYPE			DATATEMPLATE_SAMPLE
 
 uint8_t g_PosRow = 0;
 char g_Sid[16];
-
 
 /**
   * @brief  The application entry point.
@@ -75,22 +72,15 @@ void mem_info(void)
 	Log_d("\n\rTotal_mem:%d freeMem:%d", configTOTAL_HEAP_SIZE, xPortGetFreeHeapSize());
 }
 
-
 extern void mqtt_sample(void);  
-extern void shadow_sample(void);
 extern void data_template_sample(void);
 extern void light_data_template_sample(void);
-
 
 void demoTask(void)
 {
 	mem_info();
 	
-	if(SHADOW_SAMPLE == RUN_SAMPLE_TYPE)
-	{
-		shadow_sample();
-	}
-	else if(DATATEMPLATE_SAMPLE == RUN_SAMPLE_TYPE)
+  if(DATATEMPLATE_SAMPLE == RUN_SAMPLE_TYPE)
 	{
 		data_template_sample();
 	}
@@ -105,7 +95,6 @@ void demoTask(void)
 }
 
 osThreadId demoTaskHandle;
-
 int main(void)
 {
 
@@ -120,7 +109,7 @@ int main(void)
 	printf("\n\r===========Build Time 20190425===============");
 	printf("\n\rBoard init over");
 	
-	/*示例工程除MCU外不访问外设资源*/
+
 	InitRGBState();	
 	OledInit();	
 	OledShowString(0, &g_PosRow, "system start...", CHAR_WID_8, false); 

@@ -28,7 +28,7 @@ extern "C" {
 //#define CLINET_BUFF_LEN				   (4*RING_BUFF_LEN)MAX_TOPIC_PAYLOAD_LEN
 #define CLINET_BUFF_LEN				   (MAX_TOPIC_PAYLOAD_LEN)
 #define GET_CHAR_TIMEOUT_MS			   (5000)
-#define CMD_TIMEOUT_MS			   	   (5000)
+#define CMD_TIMEOUT_MS			   	   (10000)
 #define CMD_RESPONSE_INTERVAL_MS 	   (100)
 
 

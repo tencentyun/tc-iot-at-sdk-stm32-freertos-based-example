@@ -53,24 +53,12 @@ extern "C" {
 #define CLIENT_TOKEN_FIELD     		"clientToken"
 #define METHOD_FIELD	         	"method"
 #define TYPE_FIELD	         		"type"
+#define ACTION_ID_FIELD     		"actionId"
+#define TIME_STAMP_FIELD     		"timestamp"
+
 #define REPLY_CODE					"code"
 #define REPLY_STATUS				"status"
 
-
-
-//========== 影子文档字段==================//
-#define VERSION_FIELD          		"version"
-#define RESULT_FIELD	       		"result"
-
-#define OPERATION_DELTA        		"delta"
-#define OPERATION_GET				"get"
-#define OPERATION_UPDATE			"update"
-
-#define PAYLOAD_STATE				"payload.state"
-#define PAYLOAD_VERSION				"payload.version"
-#define PAYLOAD_STATE_DELTA			"payload.state.delta"
-
-//========== 数据模板字段==================//
 #define GET_STATUS					"get_status"			//设备主动查询数据状态
 #define GET_STATUS_REPLY			"get_status_reply"		//服务端回复数据状态查询
 
@@ -89,17 +77,12 @@ extern "C" {
 #define GET_CONTROL_PARA			"data.control"
 #define CMD_CONTROL_PARA			"params"
 
-
-
-
-
-
 /**
  * @brief 文档操作请求的参数结构体定义
  */
 typedef struct _RequestParam {
 
-    Method               	method;              	// 文档请求方式: GET, UPDATE, REPLY
+    Method               	method;              	// 文档请求方式: GET, REPORT, RINFO, REPLY,CLEAR
 
     uint32_t             	timeout_sec;         	// 请求超时时间, 单位:s
 
@@ -142,6 +125,18 @@ typedef struct {
     OnPropRegCallback callback;      // 回调处理函数
 
 } PropertyHandler;
+
+
+/**
+ * @brief save the action registed and its callback
+ */
+typedef struct {
+
+    void *action;							
+
+    OnActionHandleCallback callback;      
+
+} ActionHandler;
 
 
 /**
@@ -197,7 +192,7 @@ int put_json_node(char *jsonBuffer, size_t sizeOfBuffer, const char *pKey, void 
  * @param type          JSON节点value的数据类型
  * @return              返回QCLOUD_ERR_SUCCESS, 表示成功
  */
-int event_put_json_node(char *jsonBuffer, size_t sizeOfBuffer, const char *pKey, void *pData, JsonDataType type);
+int template_put_json_node(char *jsonBuffer, size_t sizeOfBuffer, const char *pKey, void *pData, JsonDataType type);
 
 
 /**
@@ -227,6 +222,36 @@ void build_empty_json(uint32_t *tokenNumber, char *pJsonBuffer);
  */
 bool parse_client_token(char *pJsonDoc, char **pClientToken);
 
+
+/**
+ * @brief parse field of aciont_id from JSON string
+ *
+ * @param pJsonDoc       source JSON string
+ * @param pActionID   	 pointer to field of action_id
+ * @return               true for success
+ */
+bool parse_action_id(char *pJsonDoc, char **pActionID);
+
+/**
+ * @brief parse field of timestamp from JSON string
+ *
+ * @param pJsonDoc       source JSON string
+ * @param pTimestamp     pointer to field of timestamp
+ * @return               true for success
+ */
+bool parse_timestamp(char *pJsonDoc, int32_t *pTimestamp);
+
+
+/**
+ * @brief parse field of input from JSON string
+ *
+ * @param pJsonDoc       source JSON string
+ * @param pActionInput   filed of params as action input parameters
+ * @return               true for success
+ */ 
+bool parse_action_input(char *pJsonDoc, char **pActionInput);
+
+
 /**
  * @brief 从JSON文档中解析出status字段,事件回复
  *
@@ -255,9 +280,6 @@ bool parse_code_return(char *pJsonDoc, int32_t *pCode);
  */
 bool update_value_if_key_match(char *pJsonDoc, DeviceProperty *pProperty);
 
-
-#ifdef MQTT_DATA_TEMPLATE_ENABLED
-
 /**
  * @brief 从JSON文档中解析出method字段
  *
@@ -284,55 +306,7 @@ bool parse_template_get_control(char *pJsonDoc, char **control);
  * @return                 返回true, 表示解析成功
  */
 bool parse_template_cmd_control(char *pJsonDoc, char **control);
-#endif
 
-#ifdef MQTT_SHADOW_ENABLE
-
-/**
- * @brief 从JSON文档中解析出state字段
- *
- * @param pJsonDoc         待解析的JSON文档
- * @param pState    	   输出state字段
- * @return                 返回true, 表示解析成功
- */
-bool parse_shadow_state(char *pJsonDoc, char **pState);
-
-/**
- * @brief 从JSON文档中解析出type字段
- *
- * @param pJsonDoc         	待解析的JSON文档
- * @param pType    			输出tyde字段
- * @return                 	返回true, 表示解析成功
- */
-bool parse_shadow_operation_type(char *pJsonDoc, char **pType);
-
-/**
- * @brief 从JSON文档中解析出result字段
- *
- * @param pJsonDoc         	待解析的JSON文档
- * @param pResultCode    	操作结果标志码
- * @return                 	返回true, 表示解析成功
- */
-bool parse_shadow_operation_result_code(char *pJsonDoc, int16_t *pResultCode);
-
-/**
- * @brief 从JSON文档中解析出delta字段, dalta type
- *
- * @param pJsonDoc         	待解析的JSON文档
- * @param pDelta    		delta字段对应的value
- * @return                 	返回true, 表示解析成功
- */
-bool parse_shadow_operation_delta(char *pJsonDoc, char **pDelta);
-
-/**
- * @brief 从JSON文档中解析出delta字段	, get/update type
- *
- * @param pJsonDoc         	待解析的JSON文档
- * @param pDelta    		delta字段对应的value
- * @return                 	返回true, 表示解析成功
- */
-bool parse_shadow_operation_get(char *pJsonDoc, char **pDelta);
-#endif
 
 #ifdef __cplusplus
 }

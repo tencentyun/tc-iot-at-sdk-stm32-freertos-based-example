@@ -317,12 +317,12 @@ int at_resp_parse_line_args_by_kw(at_response_t resp, const char *keyword, const
  */
 eAtResault at_obj_exec_cmd(at_response_t resp, const char *cmd_expr, ...)
 {
-	POINTER_SANITY_CHECK(cmd_expr, AT_ERR_NULL);
+	POINTER_SANITY_CHECK(cmd_expr, QCLOUD_ERR_NULL);
 
 	va_list args;
 	int cmd_size = 0;
 	Timer timer;
-	eAtResault result = AT_ERR_SUCCESS;
+	eAtResault result = QCLOUD_RET_SUCCESS;
 	const char *cmd = NULL;
 	at_client_t client = at_client_get();
 	
@@ -330,7 +330,7 @@ eAtResault at_obj_exec_cmd(at_response_t resp, const char *cmd_expr, ...)
 	if (client == NULL)
 	{
 		Log_e("input AT Client object is NULL, please create or get AT Client object!");
-		return AT_ERR_FAILURE;
+		return QCLOUD_ERR_FAILURE;
 	}
 #ifdef OS_USED
 	HAL_MutexLock(client->lock);
@@ -354,7 +354,7 @@ eAtResault at_obj_exec_cmd(at_response_t resp, const char *cmd_expr, ...)
 				{
 					cmd = at_get_last_cmd(&cmd_size);
 					Log_e("execute command (%.*s) failed!", cmd_size, cmd);
-					result = AT_ERR_FAILURE;
+					result = QCLOUD_ERR_FAILURE;
 					goto __exit;
 				}
 				break;
@@ -366,7 +366,7 @@ eAtResault at_obj_exec_cmd(at_response_t resp, const char *cmd_expr, ...)
 			cmd = at_get_last_cmd(&cmd_size);
 			Log_e("execute command (%.*s) timeout %dms!", cmd_size, cmd, resp->timeout);
 			client->resp_status = AT_RESP_TIMEOUT;
-			result = AT_ERR_RESP_NULL;
+			result = QCLOUD_ERR_RESP_NULL;
 		}
 	}
 
@@ -393,7 +393,7 @@ __exit:
  */
 eAtResault at_client_wait_connect(uint32_t timeout)
 {
-	eAtResault result = AT_ERR_SUCCESS;
+	eAtResault result = QCLOUD_RET_SUCCESS;
 	at_response_t resp = NULL;
 	at_client_t client = at_client_get();
 	Timer timer;
@@ -402,14 +402,14 @@ eAtResault at_client_wait_connect(uint32_t timeout)
 	if (client == NULL)
 	{
 		Log_e("input AT Client object is NULL, please create or get AT Client object!");
-		return AT_ERR_FAILURE;
+		return QCLOUD_ERR_FAILURE;
 	}
 
 	resp = at_create_resp(16, 0, CMD_TIMEOUT_MS);
 	if (resp == NULL)
 	{
 		Log_e("No memory for response object!");
-		return AT_ERR_RESP_NULL;
+		return QCLOUD_ERR_RESP_NULL;
 	}
 
 #ifdef OS_USED
@@ -442,7 +442,7 @@ eAtResault at_client_wait_connect(uint32_t timeout)
 	if(HAL_Timer_expired(&timer))
 	{
 		Log_d("read ring buff timeout");
-		result = AT_ERR_TIMEOUT;
+		result = QCLOUD_ERR_TIMEOUT;
 	}
 
 	at_delete_resp(resp);
@@ -484,7 +484,7 @@ int at_client_send(at_client_t client, char *buf, int size)
 
 static eAtResault at_client_getchar(at_client_t client, char *pch, uint32_t timeout)
 {
-	eAtResault ret = AT_ERR_SUCCESS;
+	eAtResault ret = QCLOUD_RET_SUCCESS;
 	Timer timer;
 
 	HAL_Timer_countdown_ms(&timer, timeout);
@@ -503,7 +503,7 @@ static eAtResault at_client_getchar(at_client_t client, char *pch, uint32_t time
     if(HAL_Timer_expired(&timer))
     {
 		//Log_i("read ring buff timeout");
-		ret = AT_ERR_TIMEOUT;
+		ret = QCLOUD_ERR_TIMEOUT;
 	}
 	
 
@@ -526,7 +526,7 @@ static eAtResault at_client_getchar(at_client_t client, char *pch, uint32_t time
 int at_client_obj_recv(at_client_t client, char *buf, int size, int timeout)
 {
 	int read_idx = 0;
-	eAtResault result = AT_ERR_SUCCESS;
+	eAtResault result = QCLOUD_RET_SUCCESS;
 	char ch;
 
 	POINTER_SANITY_CHECK(buf, 0);
@@ -542,7 +542,7 @@ int at_client_obj_recv(at_client_t client, char *buf, int size, int timeout)
 		if (read_idx < size)
 		{
 			result = at_client_getchar(client, &ch, timeout);
-			if (result != AT_ERR_SUCCESS)
+			if (result != QCLOUD_RET_SUCCESS)
 			{
 				Log_e("AT Client receive failed, uart device get data error(%d)", result);
 				return 0;
@@ -661,7 +661,7 @@ static int at_recv_readline(at_client_t client)
 	while (1)
 	{
 		ret = at_client_getchar(client, &ch, GET_CHAR_TIMEOUT_MS);
-		if(AT_ERR_SUCCESS != ret)
+		if(QCLOUD_RET_SUCCESS != ret)
 		{
 			return ret;
 		}
@@ -686,7 +686,7 @@ static int at_recv_readline(at_client_t client)
 				memset(client->recv_buffer, 0x00, client->recv_bufsz);
 				client->cur_recv_len = 0;
 				ring_buff_flush(client->pRingBuff);
-				return AT_ERR_FAILURE;
+				return QCLOUD_ERR_FAILURE;
 			}
 			break;
 		}
@@ -709,6 +709,7 @@ static void client_parser(void *userContex)
 
 
 	Log_d("client_parser start...");
+	client->status = AT_STATUS_INITIALIZED;
 	while(1)
 	{
 		if (at_recv_readline(client) > 0)
@@ -793,19 +794,18 @@ eAtResault at_client_para_init(at_client_t client)
 	client->status = AT_STATUS_UNINITIALIZED;
 
 #ifdef OS_USED
-//#if 0
 	client->lock = HAL_MutexCreate();
 	if(NULL == client->lock)
 	{
 		Log_e("create lock err");
-		return AT_ERR_FAILURE;
+		return QCLOUD_ERR_FAILURE;
 	}
 
 	char * ringBuff = HAL_Malloc(RING_BUFF_LEN);
 	if(NULL == ringBuff)
 	{
 		Log_e("malloc ringbuff err");
-		return AT_ERR_FAILURE;
+		return QCLOUD_ERR_FAILURE;
 	}
 	ring_buff_init(&g_ring_buff, ringBuff,  RING_BUFF_LEN);
 
@@ -813,7 +813,7 @@ eAtResault at_client_para_init(at_client_t client)
 	if(NULL == recvBuff)
 	{
 		Log_e("malloc recvbuff err");
-		return AT_ERR_FAILURE;
+		return QCLOUD_ERR_FAILURE;
 	}
 	client->recv_buffer = recvBuff;
 #else
@@ -829,13 +829,13 @@ eAtResault at_client_para_init(at_client_t client)
 	client->resp = NULL;
 	client->resp_notice = false;
 
-	client->urc_table = NULL;
-	client->urc_table_size = 0;
+	//client->urc_table = NULL;
+	//client->urc_table_size = 0;
 
 	client->parser = client_parser;
 
 
-	return AT_ERR_SUCCESS;
+	return QCLOUD_RET_SUCCESS;
 }
 
 
@@ -847,23 +847,22 @@ eAtResault at_client_para_init(at_client_t client)
  */
 eAtResault at_client_init(at_client_t pClient)
 {
-	POINTER_SANITY_CHECK(pClient, AT_ERR_NULL); 	
+	POINTER_SANITY_CHECK(pClient, QCLOUD_ERR_NULL); 	
 	eAtResault result;
 	
 	result = at_client_para_init(pClient);
-	if (result == AT_ERR_SUCCESS)
+	if (result == QCLOUD_RET_SUCCESS)
 	{
 		Log_d("AT client(V%s) initialize success.", AT_FRAME_VERSION);
-		pClient->status = AT_STATUS_INITIALIZED;
+		//pClient->status = AT_STATUS_INITIALIZED;
 		
-//#ifdef OS_USED	
-#if 0
+#ifdef OS_USED	
 		osThreadId threadId;
 		//	Parser Func should run in a separate thread
 		if(NULL != pClient->parser)
 		{
 			//pClient->parser(pClient, NULL);
-			hal_thread_create(&threadId, pClient->parser, pClient);
+			hal_thread_create(&threadId, PARSE_THREAD_STACK_SIZE, osPriorityNormal, pClient->parser, pClient);
 		}	
 #endif
 	}

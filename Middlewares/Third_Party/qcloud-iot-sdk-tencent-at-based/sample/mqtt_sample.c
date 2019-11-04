@@ -25,19 +25,18 @@ static void dataTopic_cb(char *msg, void *context)
 static eAtResault net_prepare(void)
 {
 	eAtResault Ret;
-	osThreadId threadId;
 	DeviceInfo sDevInfo;
 	at_client_t pclient = at_client_get();	
 
 	memset((char *)&sDevInfo, '\0', sizeof(DeviceInfo));
 	Ret = (eAtResault)HAL_GetDevInfo(&sDevInfo);
 
-	if(AT_ERR_SUCCESS != Ret){
+	if(QCLOUD_RET_SUCCESS != Ret){
 		Log_e("Get device info err");
-		return AT_ERR_FAILURE;
+		return QCLOUD_ERR_FAILURE;
 	}
 	
-	if(AT_ERR_SUCCESS != module_init(eMODULE_WIFI)) 
+	if(QCLOUD_RET_SUCCESS != module_init(eMODULE_WIFI)) 
 	{
 		Log_e("module init failed");
 		goto exit;
@@ -46,14 +45,8 @@ static eAtResault net_prepare(void)
 	{
 		Log_d("module init success");	
 	}
-	
-	//	Parser Func should run in a separate thread
-	if((NULL != pclient)&&(NULL != pclient->parser))
-	{
-		hal_thread_create(&threadId, PARSE_THREAD_STACK_SIZE, osPriorityNormal, pclient->parser, pclient);
-	}
 
-
+	/*at_parse thread should work first*/
 	while(AT_STATUS_INITIALIZED != pclient->status)
 	{	
 		HAL_SleepMs(1000);
@@ -61,7 +54,7 @@ static eAtResault net_prepare(void)
 	
 	Log_d("Start shakehands with module...");
 	Ret = module_handshake(CMD_TIMEOUT_MS);
-	if(AT_ERR_SUCCESS != Ret)
+	if(QCLOUD_RET_SUCCESS != Ret)
 	{
 		Log_e("module connect fail,Ret:%d", Ret);
 		goto exit;
@@ -72,14 +65,14 @@ static eAtResault net_prepare(void)
 	}
 	
 	Ret = iot_device_info_init(sDevInfo.product_id, sDevInfo.device_name, sDevInfo.devSerc);
-	if(AT_ERR_SUCCESS != Ret)
+	if(QCLOUD_RET_SUCCESS != Ret)
 	{
 		Log_e("dev info init fail,Ret:%d", Ret);
 		goto exit;
 	}
 
 	Ret = module_info_set(iot_device_info_get(), ePSK_TLS);
-	if(AT_ERR_SUCCESS != Ret)
+	if(QCLOUD_RET_SUCCESS != Ret)
 	{
 		Log_e("module info set fail,Ret:%d", Ret);
 	}
@@ -101,7 +94,7 @@ void mqtt_demo_task(void *arg)
 	do 
 	{
 		Ret = net_prepare();
-		if(AT_ERR_SUCCESS != Ret)
+		if(QCLOUD_RET_SUCCESS != Ret)
 		{
 			Log_e("net prepare fail,Ret:%d", Ret);
 			break;
@@ -111,7 +104,7 @@ void mqtt_demo_task(void *arg)
 		 *注意：module_register_network 联网需要根据所选模组适配修改实现
 		*/
 		Ret = module_register_network(eMODULE_ESP8266);
-		if(AT_ERR_SUCCESS != Ret)
+		if(QCLOUD_RET_SUCCESS != Ret)
 		{			
 			Log_e("network connect fail,Ret:%d", Ret);
 			break;
@@ -119,7 +112,7 @@ void mqtt_demo_task(void *arg)
 		
 		MQTTInitParams init_params = DEFAULT_MQTTINIT_PARAMS;
 		Ret = module_mqtt_conn(init_params);
-		if(AT_ERR_SUCCESS != Ret)
+		if(QCLOUD_RET_SUCCESS != Ret)
 		{
 			Log_e("module mqtt conn fail,Ret:%d", Ret);
 			break;
@@ -139,7 +132,7 @@ void mqtt_demo_task(void *arg)
 		}
 		Ret = module_mqtt_sub(topic_name, QOS0, dataTopic_cb, NULL);
 		
-		if(AT_ERR_SUCCESS != Ret)
+		if(QCLOUD_RET_SUCCESS != Ret)
 		{
 			Log_e("module mqtt sub fail,Ret:%d", Ret);
 			break;
@@ -154,14 +147,14 @@ void mqtt_demo_task(void *arg)
 		{
 			HAL_SleepMs(3000);
 			memset(payload, 0, 256);
-#ifdef TRANSFER_LABEL_NEED			
+#ifdef QUOTES_TRANSFER_NEED			
 			HAL_Snprintf(payload, 256, "{\\\"action\\\": \\\"publish_test\\\""T_", \\\"count\\\": \\\"%d\\\"}",count++);
 #else
 			HAL_Snprintf(payload, 256, "{\"action\": \"publish_test\", \"count\": \"%d\"}",count++);	
 #endif
 			Log_d("pub_msg:%s", payload);
 			Ret = module_mqtt_pub(topic_name, QOS0, payload);
-			if(AT_ERR_SUCCESS != Ret)
+			if(QCLOUD_RET_SUCCESS != Ret)
 			{
 				Log_e("module mqtt pub fail,Ret:%d", Ret);
 				break;

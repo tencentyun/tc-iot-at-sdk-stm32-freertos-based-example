@@ -79,6 +79,8 @@ int 			LITE_get_uint8(uint8_t *value, char *src);
 int 			LITE_get_float(float *value, char *src);
 int 			LITE_get_double(double *value, char *src);
 int 			LITE_get_boolean(bool *value, char *src);
+int 			LITE_get_string(int8_t        *value, char *src, uint16_t max_len);
+
 
 typedef struct _json_key_t {
     char           *key;

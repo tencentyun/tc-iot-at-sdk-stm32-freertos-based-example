@@ -31,7 +31,7 @@ static int _add_property_handle_to_template_list(Qcloud_IoT_Template *pTemplate,
     if (NULL == property_handle)
     {
         Log_e("run memory malloc is error!");
-        IOT_FUNC_EXIT_RC(AT_ERR_FAILURE);
+        IOT_FUNC_EXIT_RC(QCLOUD_ERR_FAILURE);
     }
 
     property_handle->callback = callback;
@@ -40,11 +40,11 @@ static int _add_property_handle_to_template_list(Qcloud_IoT_Template *pTemplate,
     ListNode *node = list_node_new(property_handle);
     if (NULL == node) {
         Log_e("run list_node_new is error!");
-        IOT_FUNC_EXIT_RC(AT_ERR_FAILURE);
+        IOT_FUNC_EXIT_RC(QCLOUD_ERR_FAILURE);
     }
     list_rpush(pTemplate->inner_data.property_handle_list, node);
 
-    IOT_FUNC_EXIT_RC(AT_ERR_SUCCESS);
+    IOT_FUNC_EXIT_RC(QCLOUD_RET_SUCCESS);
 }
 
 int template_common_check_property_existence(Qcloud_IoT_Template *ptemplate, DeviceProperty *pProperty)
@@ -60,13 +60,13 @@ int template_common_check_property_existence(Qcloud_IoT_Template *ptemplate, Dev
 
 int template_common_remove_property(Qcloud_IoT_Template *ptemplate, DeviceProperty *pProperty)
 {
-    int rc = AT_ERR_SUCCESS;
+    int rc = QCLOUD_RET_SUCCESS;
 
     ListNode *node;
     HAL_MutexLock(ptemplate->mutex);
     node = list_find(ptemplate->inner_data.property_handle_list, pProperty);
     if (NULL == node) {
-        rc = AT_ERR_PROPERTY_NOT_EXIST;
+        rc = QCLOUD_ERR_PROPERTY_NOT_EXIST;
         Log_e("Try to remove a non-existent property.");
     } else {
         list_remove(ptemplate->inner_data.property_handle_list, node);
@@ -80,11 +80,11 @@ int template_common_register_property_on_delta(Qcloud_IoT_Template *pTemplate, D
 {
     IOT_FUNC_ENTRY;
 
-    POINTER_SANITY_CHECK(pTemplate, AT_ERR_INVAL);
-    POINTER_SANITY_CHECK(callback, AT_ERR_INVAL);
-    POINTER_SANITY_CHECK(pProperty, AT_ERR_INVAL);
-    POINTER_SANITY_CHECK(pProperty->key, AT_ERR_INVAL);
-    POINTER_SANITY_CHECK(pProperty->data, AT_ERR_INVAL);
+    POINTER_SANITY_CHECK(pTemplate, QCLOUD_ERR_INVAL);
+    POINTER_SANITY_CHECK(callback, QCLOUD_ERR_INVAL);
+    POINTER_SANITY_CHECK(pProperty, QCLOUD_ERR_INVAL);
+    POINTER_SANITY_CHECK(pProperty->key, QCLOUD_ERR_INVAL);
+    POINTER_SANITY_CHECK(pProperty->data, QCLOUD_ERR_INVAL);
 
     int rc;
 

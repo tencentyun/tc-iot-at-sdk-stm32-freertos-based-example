@@ -65,8 +65,8 @@ void HexDump(const uint8_t *pData, unsigned int len);
 #define Log_w(args...) Log_writter(__FILE__, __FUNCTION__, __LINE__, LOG_WARN, args)
 #define Log_e(args...) Log_writter(__FILE__, __FUNCTION__, __LINE__, LOG_ERROR, args)
 
-//#define AT_DEBUG_EABLE
-#ifdef AT_DEBUG_EABLE
+//#define DEBUG_EABLE
+#ifdef DEBUG_EABLE
 	#define IOT_FUNC_ENTRY    \
 		{\
 		printf("FUNC_ENTRY:   %s L#%d \n", __FUNCTION__, __LINE__);  \

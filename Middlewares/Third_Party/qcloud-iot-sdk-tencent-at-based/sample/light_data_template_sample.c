@@ -28,9 +28,6 @@
 
 
 static bool sg_control_msg_arrived = false;
-static bool sg_dev_report_new_data = false;
-
-
 static char sg_data_report_buffer[AT_CMD_MAX_LEN];
 static size_t sg_data_report_buffersize = sizeof(sg_data_report_buffer) / sizeof(sg_data_report_buffer[0]);
 
@@ -71,7 +68,7 @@ static void _init_data_template(void)
 	sg_ProductData.m_color = eCOLOR_RED;
     sg_DataTemplate[1].data_property.key  = "color";
     sg_DataTemplate[1].data_property.data = &sg_ProductData.m_color;
-    sg_DataTemplate[1].data_property.type = TYPE_TEMPLATEENUM;
+    sg_DataTemplate[1].data_property.type = TYPE_TEMPLATE_ENUM;
 
 	sg_ProductData.m_brightness = 0;
     sg_DataTemplate[2].data_property.key  = "brightness";
@@ -156,7 +153,7 @@ static void update_events_timestamp(sEvent *pEvents, int count)
 	        Log_e("null event pointer"); 
 	        return; 
         }			
-		pEvents[i].timestamp = HAL_GetTimeSeconds();
+		pEvents[i].timestamp = 0; //utc time accurate or 0
 	}
 }
 #endif
@@ -164,53 +161,91 @@ static void update_events_timestamp(sEvent *pEvents, int count)
 static void event_post_cb(char *msg, void *context)
 {
 	Log_d("Reply:%s", msg);
-	clearEventFlag(context, FLAG_EVENT0|FLAG_EVENT1|FLAG_EVENT2);
+	IOT_Event_clearFlag(context, FLAG_EVENT0|FLAG_EVENT1|FLAG_EVENT2);
 }
 
 #endif
 
+#ifdef ACTION_ENABLED
 
+#define TOTAL_ACTION_COUNTS     (1)
 
-/*如果有自定义的字符串或者json，需要在这里解析*/
-static int update_self_define_value(const char *pJsonDoc, DeviceProperty *pProperty) 
-{
-    int rc = AT_ERR_SUCCESS;
-		
-	if((NULL == pJsonDoc)||(NULL == pProperty)){
-		return AT_ERR_NULL;
-	}
-	
-	/*convert const char* to char * */
-	char *pTemJsonDoc =HAL_Malloc(strlen(pJsonDoc));
-	strcpy(pTemJsonDoc, pJsonDoc);
+static TYPE_DEF_TEMPLATE_INT sg_blink_in_period = 5;
+static DeviceProperty g_actionInput_blink[] = {
+   {.key = "period", .data = &sg_blink_in_period, .type = TYPE_TEMPLATE_INT}
+};
+static TYPE_DEF_TEMPLATE_BOOL sg_blink_out_result = 0;
+static DeviceProperty g_actionOutput_blink[] = {
 
-	char* property_data = LITE_json_value_of(pProperty->key, pTemJsonDoc);	
-	
-    if(property_data != NULL){
-		if(pProperty->type == TYPE_TEMPLATE_STRING){
-			/*如果多个字符串属性,根据pProperty->key值匹配，处理字符串*/					
-			if(0 == strcmp("name", pProperty->key)){
-				memset(sg_ProductData.m_name, 0, MAX_STR_NAME_LEN);
-				strncpy(sg_ProductData.m_name, pProperty->data, MAX_STR_NAME_LEN);
-				sg_ProductData.m_name[MAX_STR_NAME_LEN-1] = '\0';
-			}
-		}else if(pProperty->type == TYPE_TEMPLATE_JOBJECT){
-			Log_d("Json type wait to be deal,%s",property_data);	
+   {.key = "result", .data = &sg_blink_out_result, .type = TYPE_TEMPLATE_BOOL},
+};
+
+static DeviceAction g_actions[]={
+
+    {
+     .pActionId = "blink",
+     .timestamp = 0,
+     .input_num = sizeof(g_actionInput_blink)/sizeof(g_actionInput_blink[0]),
+     .output_num = sizeof(g_actionOutput_blink)/sizeof(g_actionOutput_blink[0]),
+     .pInput = g_actionInput_blink,
+     .pOutput = g_actionOutput_blink,
+    },
+};
+	 
+/*-----------------action config end	-------------------*/ 
+static void OnActionCallback(void *pClient, const char *pClientToken, DeviceAction *pAction) 
+{	
+	int i;
+	sReplyPara replyPara;
+
+	//control light blink
+	int period = 0;
+	DeviceProperty *pActionInput = pAction->pInput;
+	for (i = 0; i < pAction->input_num; i++) {		
+		if(!strcmp(pActionInput[i].key, "period")) {
+			period = *((int*)pActionInput[i].data);
+		} else {
+			Log_e("no such input[%s]!", pActionInput[i].key);
 		}
-		
-		HAL_Free(property_data);
-    }else{
-		
-		rc = AT_ERR_FAILURE;
-		Log_d("Property:%s no matched",pProperty->key);	
-	}
+	}	
+
+	//do blink
+	HAL_Printf( "%s[lighting blink][****]" ANSI_COLOR_RESET, ANSI_COLOR_RED);
+	HAL_SleepMs(period*1000);
+	HAL_Printf( "\r%s[lighting blink][****]" ANSI_COLOR_RESET, ANSI_COLOR_GREEN);
+	HAL_SleepMs(period*1000);
+	HAL_Printf( "\r%s[lighting blink][****]\n" ANSI_COLOR_RESET, ANSI_COLOR_RED);
+
+	// construct output 
+	memset((char *)&replyPara, 0, sizeof(sReplyPara));
+	replyPara.code = eDEAL_SUCCESS;
+	replyPara.timeout_ms = QCLOUD_IOT_MQTT_COMMAND_TIMEOUT;						
+	strcpy(replyPara.status_msg, "action execute success!"); //add the message about the action resault 
 	
-	HAL_Free(pTemJsonDoc);
-		
-    return rc;
+	DeviceProperty *pActionOutnput = pAction->pOutput;	
+	*(int*)(pActionOutnput[0].data) = 0; //set result 
+
+	IOT_ACTION_REPLY(pClient, pClientToken, sg_data_report_buffer, sg_data_report_buffersize, pAction, &replyPara); 	
 }
 
+static int _register_data_template_action(void *pTemplate_client)
+{
+	int i,rc;
+	
+    for (i = 0; i < TOTAL_ACTION_COUNTS; i++) {
+	    rc = IOT_Template_Register_Action(pTemplate_client, &g_actions[i], OnActionCallback);
+	    if (rc != QCLOUD_RET_SUCCESS) {
+	        rc = IOT_Template_Destroy(pTemplate_client);
+	        Log_e("register device data template action failed, err: %d", rc);
+	        return rc;
+	    } else {
+	        Log_i("data template action=%s registered.", g_actions[i].pActionId);
+	    }
+    }
 
+	return QCLOUD_RET_SUCCESS;
+}
+#endif
 
 static void OnControlMsgCallback(void *pClient, const char *pJsonValueBuffer, uint32_t valueLength, DeviceProperty *pProperty) 
 {
@@ -219,13 +254,7 @@ static void OnControlMsgCallback(void *pClient, const char *pJsonValueBuffer, ui
     for (i = 0; i < TOTAL_PROPERTY_COUNT; i++) {
 		/*其他数据类型已经在_handle_delta流程统一处理了，字符串和json串需要在这里处理，因为只有产品自己才知道string/json的自定义解析*/
         if (strcmp(sg_DataTemplate[i].data_property.key, pProperty->key) == 0) {
-            sg_DataTemplate[i].state = eCHANGED;
-			if((sg_DataTemplate[i].data_property.type == TYPE_TEMPLATE_STRING)
-				||(sg_DataTemplate[i].data_property.type == TYPE_TEMPLATE_JOBJECT)){
-
-				update_self_define_value(pJsonValueBuffer, &(sg_DataTemplate[i].data_property));
-			}
-		
+            sg_DataTemplate[i].state = eCHANGED;		
             Log_i("Property=%s changed", pProperty->key);
             sg_control_msg_arrived = true;
             return;
@@ -248,7 +277,7 @@ static int _register_data_template_property(void *ptemplate_client)
 	
     for (i = 0; i < TOTAL_PROPERTY_COUNT; i++) {
 	    rc = IOT_Template_Register_Property(ptemplate_client, &sg_DataTemplate[i].data_property, OnControlMsgCallback);
-	    if (rc != AT_ERR_SUCCESS) {
+	    if (rc != QCLOUD_RET_SUCCESS) {
 	        rc = IOT_Template_Destroy(ptemplate_client);
 	        Log_e("register device data template property failed, err: %d", rc);
 	        return rc;
@@ -257,7 +286,7 @@ static int _register_data_template_property(void *ptemplate_client)
 	    }
     }
 
-	return AT_ERR_SUCCESS;
+	return QCLOUD_RET_SUCCESS;
 }
 
 
@@ -318,7 +347,7 @@ static void deal_down_stream_user_logic(void *client, ProductDataDefine *light)
 			strcpy(sg_message,"light off");
 			sg_status = 0;			
 		}
-		setEventFlag(client, FLAG_EVENT0);
+		IOT_Event_setFlag(client, FLAG_EVENT0);
 	}
 #endif
 
@@ -330,7 +359,8 @@ static void deal_down_stream_user_logic(void *client, ProductDataDefine *light)
 static int deal_up_stream_user_logic(void *client, DeviceProperty *pReportDataList[], int *pCount)
 {
 	int i, j;
-	
+	//check local property state
+	//_refresh_local_property. if property changed, set sg_DataTemplate[i].state = eCHANGED;
      for (i = 0, j = 0; i < TOTAL_PROPERTY_COUNT; i++) {       
         if(eCHANGED == sg_DataTemplate[i].state) {
             pReportDataList[j++] = &(sg_DataTemplate[i].data_property);
@@ -339,26 +369,25 @@ static int deal_up_stream_user_logic(void *client, DeviceProperty *pReportDataLi
     }
 	*pCount = j;
 
-	return (*pCount > 0)?AT_ERR_SUCCESS:AT_ERR_FAILURE;
+	return (*pCount > 0)?QCLOUD_RET_SUCCESS:QCLOUD_ERR_FAILURE;
 }
 
 
 static eAtResault net_prepare(void)
 {
 	eAtResault Ret;
-	osThreadId threadId;
 	DeviceInfo sDevInfo;
 	at_client_t pclient = at_client_get();	
 
 	memset((char *)&sDevInfo, '\0', sizeof(DeviceInfo));
 	Ret = (eAtResault)HAL_GetDevInfo(&sDevInfo);
 	
-	if(AT_ERR_SUCCESS != Ret){
+	if(QCLOUD_RET_SUCCESS != Ret){
 		Log_e("Get device info err");
-		return AT_ERR_FAILURE;
+		return QCLOUD_ERR_FAILURE;
 	}
 	
-	if(AT_ERR_SUCCESS != module_init(eMODULE_WIFI)) 
+	if(QCLOUD_RET_SUCCESS != module_init(eMODULE_L206D)) 
 	{
 		Log_e("module init failed");
 		goto exit;
@@ -368,13 +397,7 @@ static eAtResault net_prepare(void)
 		Log_d("module init success");	
 	}
 	
-	//	Parser Func should run in a separate thread
-	if((NULL != pclient)&&(NULL != pclient->parser))
-	{
-		hal_thread_create(&threadId, PARSE_THREAD_STACK_SIZE, osPriorityNormal, pclient->parser, pclient);
-	}
-
-
+	/*at_parse thread should work first*/
 	while(AT_STATUS_INITIALIZED != pclient->status)
 	{	
 		HAL_SleepMs(1000);
@@ -382,7 +405,7 @@ static eAtResault net_prepare(void)
 	
 	Log_d("Start shakehands with module...");
 	Ret = module_handshake(CMD_TIMEOUT_MS);
-	if(AT_ERR_SUCCESS != Ret)
+	if(QCLOUD_RET_SUCCESS != Ret)
 	{
 		Log_e("module connect fail,Ret:%d", Ret);
 		goto exit;
@@ -393,14 +416,14 @@ static eAtResault net_prepare(void)
 	}
 	
 	Ret = iot_device_info_init(sDevInfo.product_id, sDevInfo.device_name, sDevInfo.devSerc);
-	if(AT_ERR_SUCCESS != Ret)
+	if(QCLOUD_RET_SUCCESS != Ret)
 	{
 		Log_e("dev info init fail,Ret:%d", Ret);
 		goto exit;
 	}
 
 	Ret = module_info_set(iot_device_info_get(), ePSK_TLS);
-	if(AT_ERR_SUCCESS != Ret)
+	if(QCLOUD_RET_SUCCESS != Ret)
 	{
 		Log_e("module info set fail,Ret:%d", Ret);
 	}
@@ -419,7 +442,7 @@ static void eventPostCheck(void *client)
 	uint8_t EventCont;
 
 	//事件上报
-	eflag = getEventFlag(client);
+	eflag = IOT_Event_getFlag(client);
 	if((EVENT_COUNTS > 0 )&& (eflag > 0))
 	{	
 		EventCont = 0;
@@ -435,7 +458,7 @@ static void eventPostCheck(void *client)
 			}
 		}
 		
-		rc = qcloud_iot_post_event(client, sg_data_report_buffer, sg_data_report_buffersize, \
+		rc = IOT_Post_Event(client, sg_data_report_buffer, sg_data_report_buffersize, \
 									EventCont, pEventList, event_post_cb);
 		if(rc < 0)
 		{
@@ -458,7 +481,7 @@ static int _get_sys_info(void *handle, char *pJsonDoc, size_t sizeOfBuffer)
     DeviceProperty plat_info[] = {
      	{.key = "module_hardinfo", .type = TYPE_TEMPLATE_STRING, .data = "ESP8266"},
      	{.key = "module_softinfo", .type = TYPE_TEMPLATE_STRING, .data = "V1.0"},
-     	{.key = "fw_ver", 		   .type = TYPE_TEMPLATE_STRING, .data = "V3.0.1"},
+     	{.key = "fw_ver", 		   .type = TYPE_TEMPLATE_STRING, .data = QCLOUD_IOT_AT_SDK_VERSION},
      	{.key = "imei", 		   .type = TYPE_TEMPLATE_STRING, .data = "11-22-33-44"},
      	{.key = "lat", 			   .type = TYPE_TEMPLATE_STRING, .data = "22.546015"},
      	{.key = "lon", 			   .type = TYPE_TEMPLATE_STRING, .data = "113.941125"},
@@ -484,10 +507,10 @@ int cycle_report(DeviceProperty *pReportDataList[], Timer *reportTimer)
 			pReportDataList[i] = &(sg_DataTemplate[i].data_property);
 			countdown_ms(reportTimer, 5000);
 	    }
-		return AT_ERR_SUCCESS;
+		return QCLOUD_RET_SUCCESS;
 	}else{
 
-		return AT_ERR_INVAL;
+		return QCLOUD_ERR_INVAL;
 	}		
 }
 
@@ -505,7 +528,7 @@ void light_data_template_demo_task(void *arg)
 	do  
 	{
 		Ret = net_prepare();
-		if(AT_ERR_SUCCESS != Ret)
+		if(QCLOUD_RET_SUCCESS != Ret)
 		{
 			Log_e("net prepare fail,Ret:%d", Ret);
 			break;
@@ -514,8 +537,8 @@ void light_data_template_demo_task(void *arg)
 		/*
 		 *注意：module_register_network 联网需要根据所选模组适配修改实现
 		*/
-		Ret = module_register_network(eMODULE_ESP8266);
-		if(AT_ERR_SUCCESS != Ret)
+		Ret = module_register_network(eMODULE_L206D);
+		if(QCLOUD_RET_SUCCESS != Ret)
 		{			
 			Log_e("network connect fail,Ret:%d", Ret);
 			break;
@@ -523,7 +546,7 @@ void light_data_template_demo_task(void *arg)
 		
 		MQTTInitParams init_params = DEFAULT_MQTTINIT_PARAMS;
 		Ret = module_mqtt_conn(init_params);
-		if(AT_ERR_SUCCESS != Ret)
+		if(QCLOUD_RET_SUCCESS != Ret)
 		{
 			Log_e("module mqtt conn fail,Ret:%d", Ret);
 			break;
@@ -541,7 +564,7 @@ void light_data_template_demo_task(void *arg)
 		}
 		
 		Ret = (eAtResault)IOT_Template_Construct(&client);
-		if(AT_ERR_SUCCESS != Ret)
+		if(QCLOUD_RET_SUCCESS != Ret)
 		{
 			Log_e("data template construct fail,Ret:%d", Ret);
 			break;
@@ -556,7 +579,7 @@ void light_data_template_demo_task(void *arg)
 				
 		//register data template propertys here
 		rc = _register_data_template_property(client);
-		if (rc == AT_ERR_SUCCESS) 
+		if (rc == QCLOUD_RET_SUCCESS) 
 		{
 			Log_i("Register data template propertys Success");
 		} 
@@ -566,13 +589,24 @@ void light_data_template_demo_task(void *arg)
 			break;
 		}
 
-		
+			
+#ifdef ACTION_ENABLED
+		//register data template actions
+		rc = _register_data_template_action(client);
+		if (rc == QCLOUD_RET_SUCCESS) {
+			Log_i("Register data template actions Success");
+		} else {
+			Log_e("Register data template actions Failed: %d", rc);
+			break;
+		}
+#endif
+
 		//上报设备信息,平台根据这个信息提供产品层面的数据分析,譬如位置服务等
 		rc = _get_sys_info(client, sg_data_report_buffer, sg_data_report_buffersize);
-		if(AT_ERR_SUCCESS == rc)
+		if(QCLOUD_RET_SUCCESS == rc)
 		{
 			rc = IOT_Template_Report_SysInfo_Sync(client, sg_data_report_buffer, sg_data_report_buffersize, QCLOUD_IOT_MQTT_COMMAND_TIMEOUT);	
-			if (rc != AT_ERR_SUCCESS) 
+			if (rc != QCLOUD_RET_SUCCESS) 
 			{
 				Log_e("Report system info fail, err: %d", rc);
 				break;
@@ -583,11 +617,10 @@ void light_data_template_demo_task(void *arg)
 			Log_e("Get system info fail, err: %d", rc);
 			break;
 		}
-
 		
 		//获取离线期间数据
 		rc = IOT_Template_GetStatus_sync(client, QCLOUD_IOT_MQTT_COMMAND_TIMEOUT);
-		if (rc != AT_ERR_SUCCESS) 
+		if (rc != QCLOUD_RET_SUCCESS) 
 		{
 			Log_e("Get data status fail, err: %d", rc);
 			break;
@@ -611,14 +644,14 @@ void light_data_template_demo_task(void *arg)
 				
 				deal_down_stream_user_logic(client, &sg_ProductData);				
 				//业务逻辑处理完后需要通知服务端control msg 已收到，请服务端删除control msg，否则服务端会保留control msg(通过Get status命令可以得到未删除的Control数据)
-				sControlReplyPara replyPara;
-				memset((char *)&replyPara, 0, sizeof(sControlReplyPara));
+				sReplyPara replyPara;
+				memset((char *)&replyPara, 0, sizeof(sReplyPara));
 				replyPara.code = eDEAL_SUCCESS;
 				replyPara.timeout_ms = QCLOUD_IOT_MQTT_COMMAND_TIMEOUT;						
 				replyPara.status_msg[0] = '\0';			//可以通过 replyPara.status_msg 添加附加消息，一般在失败情况下才添加
 				
 				rc = IOT_Template_ControlReply(client, sg_data_report_buffer, sg_data_report_buffersize, &replyPara);
-	            if (rc == AT_ERR_SUCCESS) {
+	            if (rc == QCLOUD_RET_SUCCESS) {
 					Log_d("Contol msg reply success");
 					sg_control_msg_arrived = false;   
 	            } else {
@@ -626,58 +659,45 @@ void light_data_template_demo_task(void *arg)
 					break;
 	            }
 
-				sg_dev_report_new_data = true; //用户需要根据业务情况修改上报flag的赋值位置,此处仅为示例
-			}	else{
-				//Log_d("No delta msg received...");
-			}
-
-			/*设备上行消息,业务逻辑2入口*/
-			if(sg_dev_report_new_data){
 				
-				/*上报属性的最新状态，应用侧可以通过report的状态确认control的命令是否执行成功*/
-				if(AT_ERR_SUCCESS == deal_up_stream_user_logic(client, pReportDataList, &ReportCont)){
-					
-					rc = IOT_Template_JSON_ConstructReportArray(client, sg_data_report_buffer, sg_data_report_buffersize, ReportCont, pReportDataList);
-					if (rc == AT_ERR_SUCCESS) {
-						rc = IOT_Template_Report(client, sg_data_report_buffer, sg_data_report_buffersize, 
-													OnReportReplyCallback, NULL, QCLOUD_IOT_MQTT_COMMAND_TIMEOUT);
-						if (rc == AT_ERR_SUCCESS) {
-							sg_dev_report_new_data = false;
-							Log_i("data template reporte success");
-						} else {
-							Log_e("data template reporte failed, err: %d", rc);
-							break;
-						}
+			}	
+
+			/*设备上行消息,业务逻辑2入口*/			
+			if(QCLOUD_RET_SUCCESS == deal_up_stream_user_logic(client, pReportDataList, &ReportCont)){
+				
+				rc = IOT_Template_JSON_ConstructReportArray(client, sg_data_report_buffer, sg_data_report_buffersize, ReportCont, pReportDataList);
+				if (rc == QCLOUD_RET_SUCCESS) {
+					rc = IOT_Template_Report(client, sg_data_report_buffer, sg_data_report_buffersize, \
+												OnReportReplyCallback, NULL, QCLOUD_IOT_MQTT_COMMAND_TIMEOUT);
+					if (rc == QCLOUD_RET_SUCCESS) {
+						Log_d("data template reporte success");
 					} else {
-						Log_e("construct reporte data failed, err: %d", rc);
+						Log_e("data template reporte failed, err: %d", rc);
 						break;
 					}
-			
-				}else{
-					 Log_d("no data need to be reported or someting goes wrong");
+				} else {
+					Log_e("construct reporte data failed, err: %d", rc);
+					break;
 				}
-			}	else{			
-				//Log_d("No device data need to be reported...");
 			}
-			
-			if(AT_ERR_SUCCESS == cycle_report(pReportDataList, &reportTimer)){				
+
+			/*示例定时上报，另一种方法是在deal_up_stream_user_logic 中定时更新属性并修改 sg_DataTemplate[i].state = eCHANGED*/			
+			if(QCLOUD_RET_SUCCESS == cycle_report(pReportDataList, &reportTimer)){				
 				rc = IOT_Template_JSON_ConstructReportArray(client, sg_data_report_buffer, sg_data_report_buffersize, TOTAL_PROPERTY_COUNT, pReportDataList);
-		        if (rc == AT_ERR_SUCCESS) {
+		        if (rc == QCLOUD_RET_SUCCESS) {
 					Log_d("start cycle report");
-		            rc = IOT_Template_Report(client, sg_data_report_buffer, sg_data_report_buffersize, 
-		                    OnReportReplyCallback, NULL, QCLOUD_IOT_MQTT_COMMAND_TIMEOUT);
-		            if (rc == AT_ERR_SUCCESS) {
-						sg_dev_report_new_data = false;
-		                //Log_i("data template reporte success");
+		            rc = IOT_Template_Report(client, sg_data_report_buffer, sg_data_report_buffersize, \
+		                    					OnReportReplyCallback, NULL, QCLOUD_IOT_MQTT_COMMAND_TIMEOUT);
+		            if (rc == QCLOUD_RET_SUCCESS) {
+		                Log_d("cycle reporte success");
 		            } else {
-		                Log_e("data template reporte failed, err: %d", rc);
-						break;
+		                Log_e("cycle reporte failed, err: %d", rc);
 		            }
+
 		        } else {
 		            Log_e("construct reported failed, err: %d", rc);
 					break;
 		        }
-
 			}
 
 			eventPostCheck(client);
