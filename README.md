@@ -3,7 +3,7 @@
 
 ### 介绍
 
-tc-iot-at-sdk-stm32-freertos-based-example 面向使用支持腾讯AT指令的模组(2/3/4/5G、NB、WIFI等)接入腾讯物联网平台的终端设备开发者，mcu侧使用[腾讯AT_SDK](http://git.code.oa.com/iotcloud_teamIII/qcloud-iot-sdk-tecent-at-based.git)的移植示例，示例了基于STM32F103 MCU和FreeRTOS的软硬件环境如何实现HAL层的移植，主要有串口的收发接口(中断接收)，延时函数及os相关接口适配（互斥锁、动态内存申请释放、线程创建），适配层接口单独剥离在port目录。
+tc-iot-at-sdk-stm32-freertos-based-example 面向使用支持腾讯AT指令的模组(2/3/4/5G、NB、WIFI等)接入腾讯物联网平台的终端设备开发者，mcu侧使用[腾讯AT_SDK](https://github.com/tencentyun/qcloud-iot-sdk-tencent-at-based.git)的移植示例，示例了基于STM32F103 MCU和FreeRTOS的软硬件环境如何实现HAL层的移植，主要有串口的收发接口(中断接收)，延时函数及os相关接口适配（互斥锁、动态内存申请释放、线程创建），适配层接口单独剥离在port目录。
 
 ### tc-iot-at-sdk-stm32-freertos-based-example 代码工程框架
 
